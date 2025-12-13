@@ -5,6 +5,8 @@
 #include <stdbool.h>
 #include <engine.h>
 
+#include <control_config.h>
+
 extern int SCREEN_HEIGHT;
 extern int SCREEN_WIDTH;
 extern float SCREEN_SCALE;
@@ -32,6 +34,6 @@ extern float cam_zoom;
 
 extern Arena arena;
 extern Arena temp_arena;
-
+extern Arena str_arena;
 
 #endif // _CONFIG_H_
