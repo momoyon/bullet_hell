@@ -1,6 +1,8 @@
 #include <config.h>
 #include <entity.h>
 #include <bullet.h>
+#include <bullet_emitter.h>
+
 // #include <common.h>
 
 #define COMMONLIB_REMOVE_PREFIX
@@ -36,8 +38,26 @@ Bullet_array bullets = {0};
 #define STB_DS_IMPLEMENTATION
 #include <stb_ds.h>
 
+Bullet_array pattern1(Vector2 pos, void *userdata) {
+	Bullet_array _bullets = {0};
+	if (userdata == NULL) {
+		log_error("userdata is NULL; expected angle (float *)!");
+		return _bullets;
+	}
+	float *angle = (float*)userdata;
+	float was = *angle;
+	Bullet b = make_bullet(pos, *angle, 100.f, 4.f, 8.f);
+	set_bullet_speed(&b, 500.f, 100.f, 500.f, -200.f);
+	*angle += GetFrameTime() * 400.f;
+
+	darr_append(_bullets, b);
+
+	return _bullets;
+}
+
 int main(void) {
 	ren_tex = init_window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SCALE, "Bullet Hell", &WIDTH, &HEIGHT);
+	SetTargetFPS(60);
 	SetExitKey(0);
 
 	Control player_controls = {0};
@@ -74,7 +94,11 @@ int main(void) {
 		.height = HEIGHT - (pad*2),
 	};
 
+
+	/// @DEBUG
 	float angle = 0;
+	Alarm fire_alarm = { .alarm_time = 0.5 };
+	Bullet_emitter em = make_bullet_emitter(v2(WIDTH*0.5, HEIGHT*0.5), &bullets, 0.05, pattern1, (void*)&angle);
 
 	while (!WindowShouldClose()) {
 		cam.zoom = cam_zoom;
@@ -86,11 +110,10 @@ int main(void) {
 
 		// Input
 		if (IsKeyPressed(KEY_GRAVE)) DEBUG_DRAW = !DEBUG_DRAW;
+		/// @DEBUG
 		if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-			Bullet b = make_bullet(m, angle, 100.f, 4.f, 8.f);
-			set_bullet_speed(&b, 500.f, 100.f, 500.f, -200.f);
-			angle += GetFrameTime() * 100.f;
-			darr_append(bullets, b);
+			em.pos = m;
+			update_bullet_emitter(&em);
 		}
 
 		// Update
@@ -102,6 +125,7 @@ int main(void) {
 				darr_delete(bullets, Bullet, i);
 			}
 		}
+
 
 		// State-specific Update
 
@@ -117,6 +141,8 @@ int main(void) {
 		}
 
 		DrawRectangleLinesEx(bounds, 1.f, WHITE);
+
+		DrawFPS(0, 0);
 
         EndTextureMode();
         draw_ren_tex(ren_tex, SCREEN_WIDTH, SCREEN_HEIGHT);
