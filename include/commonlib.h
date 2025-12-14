@@ -10,11 +10,13 @@
 #include <assert.h>
 #include <limits.h>
 
-#if defined(_WIN32) && defined(_MSC_VER)
+#if defined(_WIN32) || defined(_MSC_VER)
+// TODO: Name collisions with raylib
 // NOTE: Don't include unwanted files to speed up compilation
 #define WIN32_LEAN_AND_MEAN
 #define NOCOMM
 #include <windows.h>
+#include <shlwapi.h>
 #undef C_ASSERT // Bruh
 #endif
 
@@ -113,7 +115,6 @@
 #define SET_FLAG C_SET_FLAG
 #define UNSET_FLAG C_UNSET_FLAG
 #define GET_FLAG C_GET_FLAG
-#define DEBUG_BREAK C_DEBUG_BREAK
 
 #endif // COMMONLIB_REMOVE_PREFIX
 
@@ -161,9 +162,8 @@ typedef wchar_t wchar;
 typedef const char*  cstr;
 typedef const wchar* wstr;
 
+
 // Static variables
-#define C_ERROR_BUFF_CAP (1024)
-extern char __error_buff__[C_ERROR_BUFF_CAP];
 
 // Macros
 #if defined(_MSC_VER) && !defined(__clang__) && !defined(__INTEL_COMPILER)
@@ -186,35 +186,6 @@ extern char __error_buff__[C_ERROR_BUFF_CAP];
 
 #define c_shift(xs, xsz) (assert(xsz > 0 && "Array is empty"), xsz--, *xs++)
 #define c_shift_args c_shift
-
-#if defined(_WIN32) || defined(_WIN64)
-  /* MSVC: use intrinsic */
-  #if defined(_MSC_VER)
-    #include <intrin.h>
-    #pragma intrinsic(DebugBreak)
-    #define C_DEBUG_BREAK() DebugBreak()
-  #else
-    /* MinGW / other compilers: declare function manually to avoid windows.h */
-    #ifdef __cplusplus
-    extern "C" __declspec(dllimport) void __stdcall DebugBreak(void);
-    #else
-    __declspec(dllimport) void __stdcall DebugBreak(void);
-    #endif
-    #define C_DEBUG_BREAK() DebugBreak()
-  #endif
-#elif defined(__unix__) || defined(__APPLE__) || defined(__linux__) || defined(__ANDROID__) || defined(__MACH__)
-  #include <signal.h>
-  #if defined(__x86_64__) || defined(__i386__)
-    #define C_DEBUG_BREAK() __asm__ volatile("int3")
-  #elif defined(__aarch64__)
-    #define C_DEBUG_BREAK() __asm__ volatile("brk #0")
-  #else
-    #define C_DEBUG_BREAK() raise(SIGTRAP)
-  #endif
-#else
-  #include <signal.h>
-  #define C_DEBUG_BREAK() raise(SIGTRAP)
-#endif
 
 //
 // Math
@@ -246,7 +217,7 @@ typedef struct c_Arena c_Arena;
 // in the struct; So we recommend defining da structs manually like:
 // ```C
 // typedef struct {
-//    <item-type> items;
+//    <item-type> *items;
 //    size_t count;
 //    size_t capacity;
 //    [extra fields...];
@@ -541,7 +512,6 @@ bool c_sv_lpop_arg(c_String_view *sv, c_String_view *out);
 // My things implementation:
 
 // Global variables
-char __error_buff__[C_ERROR_BUFF_CAP] = {0};
 
 //
 // Math
@@ -587,9 +557,7 @@ void c_os_get_timedate(c_Arena* a) {
 }
 
 bool c_os_file_exists(cstr filename) {
-        (void) filename;
-        C_ASSERT(false, "Unimplemented!");
-        return false;
+    return PathFileExistsA(filename);
 }
 
 #elif defined(__linux__)
@@ -614,36 +582,31 @@ const char *c_read_file(const char* filename, int *file_size) {
     char* result = NULL;
 
     if (f == NULL){
-        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
-        c_log_error("'%s': %s", filename, __error_buff__);
+        c_log_error("'%s': %s", filename, strerror(errno));
         defer(NULL);
     }
 
     if (fseek(f, 0, SEEK_END) < 0) {
-        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
-        c_log_error("'%s': %s", filename, __error_buff__);
+        c_log_error("'%s': %s", filename, strerror(errno));
         defer(NULL);
     }
 
     size_t fsize = ftell(f);
 
     if (fsize == (size_t)-1){
-        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
-        c_log_error("'%s': %s", filename, __error_buff__);
+        c_log_error("'%s': %s", filename, strerror(errno));
         defer(NULL);
     }
 
     result = C_MALLOC(sizeof(char)*(fsize+1));
 
     if (result == NULL){
-        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
-        c_log_error("'%s': %s", filename, __error_buff__);
+        c_log_error("'%s': %s", filename, strerror(errno));
         defer(NULL);
     }
 
     if (fseek(f, 0, SEEK_SET) < 0) {
-        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
-        c_log_error("'%s': %s", filename, __error_buff__);
+        c_log_error("'%s': %s", filename, strerror(errno));
         defer(NULL);
     }
 
