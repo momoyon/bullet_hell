@@ -22,6 +22,7 @@ Vector2 v2(float x, float y);
 #define v2_scale Vector2Scale
 float v2_radians(Vector2 v);
 Vector2 v2_from_radians(float r);
+Vector2 v2_from_degrees(float d);
 
 // Vector2i
 typedef struct {
@@ -227,6 +228,10 @@ Vector2 v2_from_radians(float r) {
     v.y = sinf(r);
 
     return v;
+}
+
+Vector2 v2_from_degrees(float d) {
+	return v2_from_radians(DEG2RAD*d);
 }
 
 float v2_radians(Vector2 v) {

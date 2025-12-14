@@ -4,6 +4,7 @@
 #include <raylib.h>
 #include <stdbool.h>
 #include <engine.h>
+#include <bullet.h>
 
 #include <control_config.h>
 
@@ -24,13 +25,9 @@ extern float cam_zoom;
 
 #define CAM_SPEED 100.f
 
-#define TILE_SIZE 32
-
-#define ENTITY_DEFAULT_RADIUS TILE_SIZE*0.5
-#define ENTITY_DEFAULT_SPEED  100.0f
-#define ENTITY_DEFAULT_RUN_SPEED (ENTITY_DEFAULT_SPEED * 1.5f)
-
 #define CAMERA_DEFAULT_ZOOM 1.5f
+
+extern Bullet_array bullets;
 
 extern Arena arena;
 extern Arena temp_arena;

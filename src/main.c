@@ -1,5 +1,6 @@
 #include <config.h>
 #include <entity.h>
+#include <bullet.h>
 // #include <common.h>
 
 #define COMMONLIB_REMOVE_PREFIX
@@ -30,6 +31,7 @@ float cam_zoom = 1.0;
 Arena arena;
 Arena temp_arena;
 Arena str_arena;
+Bullet_array bullets = {0};
 
 #define STB_DS_IMPLEMENTATION
 #include <stb_ds.h>
@@ -56,15 +58,23 @@ int main(void) {
 	temp_arena = arena_make(0);
 	str_arena  = arena_make(4*1024);
 
-	Entity player = make_entity(v2(WIDTH*0.5, HEIGHT*0.5), 150.f);
-	player.unfocus_speed = 400.f;
-	player.focus_speed = 200.f;
+	Entity player = make_player(v2(WIDTH*0.5, HEIGHT*0.5), 400.f, 200.f, 16.f, 4.f);
 
 	font = GetFontDefault();
 	if (!IsFontReady(font)) {
 		log_error("Failed to get default font?");
 		exit(1);
 	}
+
+	const float pad = 100.f;
+	Rectangle bounds = {
+		.x = pad,
+		.y = pad,
+		.width = WIDTH - (pad*2),
+		.height = HEIGHT - (pad*2),
+	};
+
+	float angle = 0;
 
 	while (!WindowShouldClose()) {
 		cam.zoom = cam_zoom;
@@ -76,13 +86,21 @@ int main(void) {
 
 		// Input
 		if (IsKeyPressed(KEY_GRAVE)) DEBUG_DRAW = !DEBUG_DRAW;
+		if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+			Bullet b = make_bullet(m, angle, 100.f, 4.f, 8.f);
+			set_bullet_speed(&b, 500.f, 100.f, 500.f, -200.f);
+			angle += GetFrameTime() * 100.f;
+			darr_append(bullets, b);
+		}
 
 		// Update
 		control_entity(&player, player_controls);
-		if (on_action_held(&player_controls, ACTION_FOCUS)) {
-			player.speed = player.focus_speed;
-		} else {
-			player.speed = player.unfocus_speed;
+		for (int i = 0; i < bullets.count; ++i) {
+			Bullet *b = &bullets.items[i];
+			update_bullet(b);
+			if (!CheckCollisionPointRec(b->pos, bounds)) {
+				darr_delete(bullets, Bullet, i);
+			}
 		}
 
 		// State-specific Update
@@ -92,6 +110,13 @@ int main(void) {
 
 		draw_entity(&player);
 		DrawCircleV(m, 16.f, GREEN);
+
+		for (int i = 0; i < bullets.count; ++i) {
+			Bullet *b = &bullets.items[i];
+			draw_bullet(b);
+		}
+
+		DrawRectangleLinesEx(bounds, 1.f, WHITE);
 
         EndTextureMode();
         draw_ren_tex(ren_tex, SCREEN_WIDTH, SCREEN_HEIGHT);
