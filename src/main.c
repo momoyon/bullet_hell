@@ -1,4 +1,5 @@
 #include <config.h>
+#include <common.h>
 #include <entity.h>
 #include <bullet.h>
 #include <bullet_emitter.h>
@@ -12,7 +13,7 @@
 #define ENGINE_IMPLEMENTATION
 #include <engine.h>
 
-int SCREEN_HEIGHT  = 720;
+int SCREEN_HEIGHT  = 900;
 int SCREEN_WIDTH   = 1280;
 float SCREEN_SCALE = 1;
 
@@ -45,7 +46,6 @@ Bullet_array pattern1(Vector2 pos, void *userdata) {
 		return _bullets;
 	}
 	float *angle = (float*)userdata;
-	float was = *angle;
 	Bullet b = make_bullet(pos, *angle, 100.f, 4.f, 8.f);
 	set_bullet_speed(&b, 500.f, 100.f, 500.f, -200.f);
 	*angle += GetFrameTime() * 400.f;
@@ -78,6 +78,7 @@ int main(void) {
 	temp_arena = arena_make(0);
 	str_arena  = arena_make(4*1024);
 
+
 	Entity player = make_player(v2(WIDTH*0.5, HEIGHT*0.5), 400.f, 200.f, 16.f, 4.f);
 
 	font = GetFontDefault();
@@ -94,19 +95,15 @@ int main(void) {
 		.height = HEIGHT - (pad*2),
 	};
 
-
 	/// @DEBUG
 	float angle = 0;
-	Alarm fire_alarm = { .alarm_time = 0.5 };
 	Bullet_emitter em = make_bullet_emitter(v2(WIDTH*0.5, HEIGHT*0.5), &bullets, 0.05, pattern1, (void*)&angle);
 
 	while (!WindowShouldClose()) {
-		cam.zoom = cam_zoom;
 		arena_reset(&temp_arena);
 
         BeginDrawing();
         Vector2 m = get_mpos_scaled(SCREEN_SCALE);
-		Vector2 m_world = GetScreenToWorld2D(m, cam);
 
 		// Input
 		if (IsKeyPressed(KEY_GRAVE)) DEBUG_DRAW = !DEBUG_DRAW;
@@ -118,14 +115,16 @@ int main(void) {
 
 		// Update
 		control_entity(&player, player_controls);
+		bind(&player.pos, player.radius, bounds);
 		for (int i = 0; i < bullets.count; ++i) {
 			Bullet *b = &bullets.items[i];
 			update_bullet(b);
+
+			// Delete when outofbounds
 			if (!CheckCollisionPointRec(b->pos, bounds)) {
 				darr_delete(bullets, Bullet, i);
 			}
 		}
-
 
 		// State-specific Update
 

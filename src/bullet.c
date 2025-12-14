@@ -1,4 +1,5 @@
 #include <bullet.h>
+#include <config.h>
 #include <engine.h>
 
 Bullet make_bullet(Vector2 pos, float direction_degrees, float speed, float hitbox_radius, float radius) {
@@ -8,6 +9,8 @@ Bullet make_bullet(Vector2 pos, float direction_degrees, float speed, float hitb
 		.hitbox_radius = hitbox_radius,
 		.radius = radius,
 	};
+
+	ASSERT(load_texture(&tm, "resources/gfx/bullet.png", &b.tex), "Texture fail");
 
 	set_bullet_speed(&b, speed, speed, speed, 0.f);
 
@@ -30,5 +33,20 @@ void update_bullet(Bullet *b) {
 }
 
 void draw_bullet(Bullet *b) {
-	DrawCircleV(b->pos, b->radius, BLUE);
+	// DrawCircleV(b->pos, b->radius, BLUE);
+	Rectangle src = {
+		.x = 0,
+		.y = 0,
+		.width = b->tex.width,
+		.height = b->tex.height,
+	};
+	Rectangle dst = {
+		.x = b->pos.x,
+		.y = b->pos.y,
+		.width = b->tex.width,
+		.height = b->tex.height,
+	};
+	Vector2 origin = v2(b->tex.width*0.5, b->tex.height*0.5);
+	DrawTexturePro(b->tex, src, dst, origin, 0, WHITE);
+	// RLAPI void DrawTexturePro(Texture2D texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint); // Draw a part of a texture defined by a rectangle with 'pro' parameters
 }

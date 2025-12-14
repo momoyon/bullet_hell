@@ -15,6 +15,8 @@ struct Bullet {
 	float hitbox_radius;
 
 	float speed, min_speed, max_speed, speed_delta;
+
+	Texture2D tex;
 };
 
 struct Bullet_array {
