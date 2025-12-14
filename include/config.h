@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <engine.h>
 #include <bullet.h>
+#include <enemy.h>
 
 #include <control_config.h>
 
@@ -28,6 +29,7 @@ extern float cam_zoom;
 #define CAMERA_DEFAULT_ZOOM 1.5f
 
 extern Bullet_array bullets;
+extern Enemies enemies;
 
 extern Arena arena;
 extern Arena temp_arena;

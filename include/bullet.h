@@ -11,7 +11,6 @@ struct Bullet {
 	Vector2 pos;
 	Vector2 dir;
 
-	float radius;
 	float hitbox_radius;
 
 	float speed, min_speed, max_speed, speed_delta;
@@ -25,7 +24,7 @@ struct Bullet_array {
 	size_t capacity;
 };
 
-Bullet make_bullet(Vector2 pos, float direction_degrees, float speed, float hitbox_radius, float radius);
+Bullet make_bullet(Vector2 pos, float direction_degrees, float speed, float hitbox_radius);
 void set_bullet_speed(Bullet *b, float speed, float min, float max, float delta);
 void update_bullet(Bullet *b);
 void draw_bullet(Bullet *b);

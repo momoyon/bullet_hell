@@ -2,6 +2,7 @@
 #include <common.h>
 #include <entity.h>
 #include <bullet.h>
+#include <enemy.h>
 #include <bullet_emitter.h>
 
 // #include <common.h>
@@ -35,6 +36,7 @@ Arena arena;
 Arena temp_arena;
 Arena str_arena;
 Bullet_array bullets = {0};
+Enemies enemies = {0};
 
 #define STB_DS_IMPLEMENTATION
 #include <stb_ds.h>
@@ -46,7 +48,7 @@ Bullet_array pattern1(Vector2 pos, void *userdata) {
 		return _bullets;
 	}
 	float *angle = (float*)userdata;
-	Bullet b = make_bullet(pos, *angle, 100.f, 4.f, 8.f);
+	Bullet b = make_bullet(pos, *angle, 100.f, 8.f);
 	set_bullet_speed(&b, 500.f, 100.f, 500.f, -200.f);
 	*angle += GetFrameTime() * 400.f;
 
@@ -77,7 +79,6 @@ int main(void) {
 	arena      = arena_make(0);
 	temp_arena = arena_make(0);
 	str_arena  = arena_make(4*1024);
-
 
 	Entity player = make_player(v2(WIDTH*0.5, HEIGHT*0.5), 400.f, 200.f, 16.f, 4.f);
 
@@ -112,6 +113,10 @@ int main(void) {
 			em.pos = m;
 			update_bullet_emitter(&em);
 		}
+		if (IsKeyPressed(KEY_E)) {
+			Enemy e = make_enemy(m, "resources/gfx/enemy.png", 16.f);
+			darr_append(enemies, e);
+		}
 
 		// Update
 		control_entity(&player, player_controls);
@@ -125,6 +130,15 @@ int main(void) {
 				darr_delete(bullets, Bullet, i);
 			}
 		}
+		for (int i = 0; i < enemies.count; ++i) {
+			Enemy *e = &enemies.items[i];
+			// update_enemy(e);
+
+			// Delete when outofbounds
+			if (!CheckCollisionPointRec(e->pos, bounds)) {
+				darr_delete(enemies, Enemy, i);
+			}
+		}
 
 		// State-specific Update
 
@@ -134,6 +148,10 @@ int main(void) {
 		draw_entity(&player);
 		DrawCircleV(m, 16.f, GREEN);
 
+		for (int i = 0; i < enemies.count; ++i) {
+			Enemy *e = &enemies.items[i];
+			draw_enemy(e);
+		}
 		for (int i = 0; i < bullets.count; ++i) {
 			Bullet *b = &bullets.items[i];
 			draw_bullet(b);
