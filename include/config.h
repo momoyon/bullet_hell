@@ -28,6 +28,10 @@ extern float cam_zoom;
 #define CAMERA_DEFAULT_ZOOM 1.5f
 #define SPRITE_SCALE 2.f
 
+/// NOTE: RUMIA
+#define RUMIA_SHOT_TEXPATH "resources/gfx/rumia_shot.png"
+#define RUMIA_SHOT_SPEED 1500
+
 extern Bullets bullets;
 extern Shots shots;
 

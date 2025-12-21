@@ -3,6 +3,7 @@
 #include <common.h>
 #include <entity.h>
 #include <bullet.h>
+#include <hitbox.h>
 #include <bullet_emitter.h>
 
 // #include <common.h>
@@ -93,7 +94,7 @@ int main(void) {
 	temp_arena = arena_make(0);
 	str_arena  = arena_make(4*1024);
 
-	Entity player = make_player(&shots, v2(WIDTH*0.5, HEIGHT*0.5), 0.05f, 400.f, 200.f, 16.f, 4.f, 500.f, 8.f, "resources/gfx/rumia_shot.png");
+	Entity player = make_player(&shots, v2(WIDTH*0.5, HEIGHT*0.5), 0.05f, 400.f, 200.f, 16.f, 4.f, RUMIA_SHOT_SPEED, 8.f, RUMIA_SHOT_TEXPATH);
 
 	font = GetFontDefault();
 	if (!IsFontReady(font)) {
@@ -112,6 +113,7 @@ int main(void) {
 	/// @DEBUG
 	float angle = 0;
 	Bullet_emitter em = make_bullet_emitter(v2(WIDTH*0.5, HEIGHT*0.5), &bullets, 0.05, pattern1, (void*)&angle);
+    Hitbox hbox = { .pos = v2xx(0), .size = { 50, 50 }};
 
 	while (!WindowShouldClose()) {
 		arena_reset(&temp_arena);
@@ -127,7 +129,28 @@ int main(void) {
 			update_bullet_emitter(&em);
 		}
 
+        if (IsKeyDown(KEY_LEFT_CONTROL)) {
+            const char *path = "test.hitbox";
+            if (IsKeyPressed(KEY_S)) {
+                if (save_hitbox_to_file(&hbox, path)    ) {
+                    log_debug("Saved hbox to %s: %fx%f at %fx%f", path, hbox.size.x, hbox.size.y, hbox.pos.x, hbox.pos.y);
+                }
+            }
+            if (IsKeyPressed(KEY_L)) {
+                if (load_hitbox_from_file(&hbox, path)) {
+                    log_debug("Loaded hbox from %s: %fx%f at %fx%f", path, hbox.size.x, hbox.size.y, hbox.pos.x, hbox.pos.y);
+                }
+            }
+        }
+
 		// Update
+        /// @DEBUG
+        if (IsKeyDown(KEY_P)) hbox.pos = m;
+        if (IsKeyDown(KEY_S)) {
+
+            hbox.size.x = m.x - hbox.pos.x;
+            hbox.size.y = m.y - hbox.pos.y;
+        }
 		control_entity(&player, player_controls);
 		bind(&player.pos, player.radius, bounds);
         // Update Bullets
@@ -158,6 +181,7 @@ int main(void) {
 		ClearBackground(BLACK);
         /// @DEBUG
         DrawTextureEx(title_screen_tex, v2(0,0), 0, SPRITE_SCALE, WHITE);
+        draw_hitbox(&hbox);
 
 		draw_entity(&player);
 		DrawCircleV(m, 16.f, GREEN);
