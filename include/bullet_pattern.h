@@ -3,6 +3,6 @@
 
 #include <bullet.h>
 
-typedef (Bullet_array)(*Bullet_pattern_func)(Vector2, void *);
+typedef Bullets(*Bullet_pattern_func)(Vector2, void *);
 
 #endif // BULLET_PATTERN_H_

@@ -1,3 +1,4 @@
+#include "raylib.h"
 #include <config.h>
 #include <common.h>
 #include <entity.h>
@@ -13,7 +14,7 @@
 #define ENGINE_IMPLEMENTATION
 #include <engine.h>
 
-int SCREEN_HEIGHT  = 900;
+int SCREEN_HEIGHT  = 960;
 int SCREEN_WIDTH   = 1280;
 float SCREEN_SCALE = 1;
 
@@ -34,13 +35,14 @@ float cam_zoom = 1.0;
 Arena arena;
 Arena temp_arena;
 Arena str_arena;
-Bullet_array bullets = {0};
+Bullets bullets = {0};
+Shots shots = {0};
 
 #define STB_DS_IMPLEMENTATION
 #include <stb_ds.h>
 
-Bullet_array pattern1(Vector2 pos, void *userdata) {
-	Bullet_array _bullets = {0};
+Bullets pattern1(Vector2 pos, void *userdata) {
+Bullets _bullets = {0};
 	if (userdata == NULL) {
 		log_error("userdata is NULL; expected angle (float *)!");
 		return _bullets;
@@ -74,12 +76,24 @@ int main(void) {
 	add_control(&player_controls, KEY_LEFT, ACTION_UI_MOVE_LEFT);
 	add_control(&player_controls, KEY_RIGHT, ACTION_UI_MOVE_RIGHT);
 
+    load_all_textures();
+
+    Texture2D title_screen_tex = {0};
+    const char *title_screen_tex_path = "resources/gfx/title_screen.png";
+    load_texture(&tm, title_screen_tex_path, &title_screen_tex);
+    if (!IsTextureReady(title_screen_tex)) {
+        log_debug("Failed to load %s", title_screen_tex_path);
+        return 1;
+    }
+
+    log_debug("Title Screen Texture Size: %dx%d (%fx%f)", title_screen_tex.width, title_screen_tex.height,
+             title_screen_tex.width * SPRITE_SCALE, title_screen_tex.height * SPRITE_SCALE);
+
 	arena      = arena_make(0);
 	temp_arena = arena_make(0);
 	str_arena  = arena_make(4*1024);
 
-
-	Entity player = make_player(v2(WIDTH*0.5, HEIGHT*0.5), 400.f, 200.f, 16.f, 4.f);
+	Entity player = make_player(&shots, v2(WIDTH*0.5, HEIGHT*0.5), 0.05f, 400.f, 200.f, 16.f, 4.f, 500.f, 8.f, "resources/gfx/rumia_shot.png");
 
 	font = GetFontDefault();
 	if (!IsFontReady(font)) {
@@ -116,6 +130,7 @@ int main(void) {
 		// Update
 		control_entity(&player, player_controls);
 		bind(&player.pos, player.radius, bounds);
+        // Update Bullets
 		for (int i = 0; i < bullets.count; ++i) {
 			Bullet *b = &bullets.items[i];
 			update_bullet(b);
@@ -126,10 +141,23 @@ int main(void) {
 			}
 		}
 
+        // Update Shots
+		for (int i = 0; i < shots.count; ++i) {
+			Shot *sh = &shots.items[i];
+			update_shot(sh);
+
+			// Delete when outofbounds
+			if (!CheckCollisionPointRec(sh->pos, bounds)) {
+				darr_delete(shots, Shot, i);
+			}
+		}
+
 		// State-specific Update
 
 		// Draw
 		ClearBackground(BLACK);
+        /// @DEBUG
+        DrawTextureEx(title_screen_tex, v2(0,0), 0, SPRITE_SCALE, WHITE);
 
 		draw_entity(&player);
 		DrawCircleV(m, 16.f, GREEN);
@@ -137,6 +165,10 @@ int main(void) {
 		for (int i = 0; i < bullets.count; ++i) {
 			Bullet *b = &bullets.items[i];
 			draw_bullet(b);
+		}
+		for (int i = 0; i < shots.count; ++i) {
+			Shot *sh = &shots.items[i];
+			draw_shot(sh);
 		}
 
 		DrawRectangleLinesEx(bounds, 1.f, WHITE);

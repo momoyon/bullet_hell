@@ -5,7 +5,7 @@
 #include <commonlib.h>
 
 typedef struct Bullet Bullet;
-typedef struct Bullet_array Bullet_array;
+typedef struct Bullets Bullets;
 
 struct Bullet {
 	Vector2 pos;
@@ -19,7 +19,7 @@ struct Bullet {
 	Texture2D tex;
 };
 
-struct Bullet_array {
+struct Bullets {
 	Bullet *items;
 	size_t count;
 	size_t capacity;

@@ -479,13 +479,15 @@ bool load_texture_(Texture_manager *tm, const char *filepath, Texture2D *tex_out
 	Texture_KV *tex_KV = hmgetp_null(tm->texture_map, filepath);
 
 	if (tex_KV != NULL) {
-		*tex_out = tex_KV->value;
+        if (tex_out)
+            *tex_out = tex_KV->value;
         if (verbose)
             log_debug("Found '%s' at texture_map index [%zu]", filepath, hmlenu(tm->texture_map));
 	} else {
 		Texture2D tex = LoadTexture(filepath);
 		if (!IsTextureReady(tex)) return false;
-		*tex_out = tex;
+        if (tex_out)
+            *tex_out = tex;
 		hmput(tm->texture_map, filepath, tex);
         if (verbose)
             log_debug("Added '%s' to texture_map index [%zu]", filepath, hmlenu(tm->texture_map));
