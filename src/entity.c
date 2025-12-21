@@ -1,18 +1,20 @@
+#include "common.h"
 #include "control_config.h"
+#include "hitbox.h"
 #include "raylib.h"
 #include "shot.h"
 #include <entity.h>
 #include <config.h>
 
-Entity make_entity(Vector2 pos, float speed, float radius) {
+Entity make_entity(Vector2 pos, float speed, Hitbox hitbox) {
 	return (Entity) {
 		.pos = pos,
 		.speed = speed,
-		.radius = radius,
+        .hitbox = hitbox,
 	};
 }
 
-Entity make_player(Shots *shots_ptr, Vector2 pos, float fire_rate, float unfocus_speed, float focus_speed, float radius, float hitbox_radius, float shot_speed, float shot_hitbox, const char *shot_texpath) {
+Entity make_player(Shots *shots_ptr, Vector2 pos, float fire_rate, float unfocus_speed, float focus_speed, const char *texpath, Hitbox hitbox, float shot_speed, float shot_hitbox, const char *shot_texpath) {
     Entity res = {
         .fire_rate = fire_rate,
         .shots_ptr = shots_ptr,
@@ -21,12 +23,13 @@ Entity make_player(Shots *shots_ptr, Vector2 pos, float fire_rate, float unfocus
 		.speed = unfocus_speed,
 		.unfocus_speed = unfocus_speed,
 		.focus_speed = focus_speed,
-		.radius = radius,
-		.hitbox_radius = hitbox_radius,
+        .hitbox = hitbox,
         .shot_speed = shot_speed,
         .shot_hitbox = shot_hitbox,
         .shot_texpath = shot_texpath,
 	};
+
+    load_texture(&tm, texpath, &res.tex);
 
     res.fire_alarm.alarm_time = fire_rate;
 
@@ -64,7 +67,12 @@ void control_entity(Entity *e, Control controls) {
 }
 
 void draw_entity(Entity *e) {
+    if (IsTextureReady(e->tex)) {
+        draw_texture_centered(e->tex, e->pos, v2xx(SPRITE_SCALE), 0, WHITE);
+    }
+
 	if (DEBUG_DRAW) {
-		DrawCircleV(e->pos, e->radius, RED);
+        draw_hitbox_offsetted(&e->hitbox, e->pos);
+        DrawCircleV(e->pos, 2.f, RED);
 	}
 }

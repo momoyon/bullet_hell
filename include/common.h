@@ -3,8 +3,9 @@
 
 #include <raylib.h>
 
-void bind(Vector2 *p, float radius, Rectangle bound);
+void bind(Vector2 *p, Vector2 size, Rectangle bound);
 void draw_info_text(Vector2 *p, const char *text, int font_size, Color color);
+void draw_texture_centered(Texture2D tex, Vector2 pos, Vector2 scl, float rot, Color tint);
 void load_all_textures(void);
 
 #endif // COMMON_H_

@@ -1,4 +1,5 @@
 #include "raylib.h"
+#include <engine.h>
 #include <hitbox.h>
 #include <stdio.h>
 #define COMMONLIB_REMOVE_PREFIX
@@ -85,4 +86,8 @@ bool save_hitbox_to_file(Hitbox *hbox, const char *filepath) {
 
 void draw_hitbox(Hitbox *hbox) {
     DrawRectangleV(hbox->pos, hbox->size, ColorAlpha(RED, 0.75));
+}
+
+void draw_hitbox_offsetted(Hitbox *hbox, Vector2 offset) {
+    DrawRectangleV(v2_add(hbox->pos, offset), hbox->size, ColorAlpha(RED, 0.75));
 }

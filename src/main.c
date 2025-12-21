@@ -94,7 +94,11 @@ int main(void) {
 	temp_arena = arena_make(0);
 	str_arena  = arena_make(4*1024);
 
-	Entity player = make_player(&shots, v2(WIDTH*0.5, HEIGHT*0.5), 0.05f, 400.f, 200.f, 16.f, 4.f, RUMIA_SHOT_SPEED, 8.f, RUMIA_SHOT_TEXPATH);
+    Hitbox player_hitbox = {
+        .pos = {0},
+        .size = {16, 16},
+    };
+	Entity player = make_player(&shots, v2(WIDTH*0.5, HEIGHT*0.5), 0.05f, 400.f, 200.f, "resources/gfx/bullet.png", player_hitbox, RUMIA_SHOT_SPEED, 8.f, RUMIA_SHOT_TEXPATH);
 
 	font = GetFontDefault();
 	if (!IsFontReady(font)) {
@@ -152,7 +156,7 @@ int main(void) {
             hbox.size.y = m.y - hbox.pos.y;
         }
 		control_entity(&player, player_controls);
-		bind(&player.pos, player.radius, bounds);
+		bind(&player.pos, player.hitbox.size, bounds);
         // Update Bullets
 		for (int i = 0; i < bullets.count; ++i) {
 			Bullet *b = &bullets.items[i];
