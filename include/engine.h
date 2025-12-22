@@ -73,7 +73,7 @@ bool input_to_buff(char *buff, size_t buff_cap, int *cursor);
 
 // Assets Manager
 typedef struct {
-	const char *key;
+	char *key;
 	Texture2D value;
 } Texture_KV;
 
@@ -476,21 +476,21 @@ bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out)
 
 
 bool load_texture_(Texture_manager *tm, const char *filepath, Texture2D *tex_out, bool verbose) {
-	Texture_KV *tex_KV = hmgetp_null(tm->texture_map, filepath);
+	Texture_KV *tex_KV = shgetp_null(tm->texture_map, (char *)filepath);
 
 	if (tex_KV != NULL) {
         if (tex_out)
             *tex_out = tex_KV->value;
         if (verbose)
-            log_debug("Found '%s' at texture_map index [%zu]", filepath, hmlenu(tm->texture_map));
+            log_debug("Found '%s' at texture_map index [%zu]", filepath, shlenu(tm->texture_map));
 	} else {
 		Texture2D tex = LoadTexture(filepath);
 		if (!IsTextureReady(tex)) return false;
         if (tex_out)
             *tex_out = tex;
-		hmput(tm->texture_map, filepath, tex);
+		shput(tm->texture_map, (char *)filepath, tex);
         if (verbose)
-            log_debug("Added '%s' to texture_map index [%zu]", filepath, hmlenu(tm->texture_map));
+            log_debug("Added '%s' to texture_map index [%zu]", filepath, shlenu(tm->texture_map));
 	}
 
 	return true;
