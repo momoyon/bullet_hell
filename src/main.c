@@ -5,8 +5,18 @@
 #include <bullet.h>
 #include <hitbox.h>
 #include <bullet_emitter.h>
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
 
 // #include <common.h>
+
+#define LUA_CALL(nargs, nresults) \
+    if (lua_pcall(L, (nargs), (nresults), 0) != LUA_OK) {\
+        log_error("LUA ERROR: %s", lua_tostring(L, -1));\
+        lua_pop(L, 1);\
+        exit(1);\
+    }
 
 #define COMMONLIB_REMOVE_PREFIX
 #define COMMONLIB_IMPLEMENTATION
@@ -121,7 +131,71 @@ Bullets pattern1(Vector2 pos, void *userdata) {
 	return _bullets;
 }
 
+int lua_get_bullets_count(lua_State *L) {
+    Bullets **ud = (Bullets **)luaL_checkudata(L, 1, "BulletsMeta");
+    Bullets *bullets = *ud;
+
+    lua_pushinteger(L, bullets->count);
+
+    return 1;
+}
+
+int lua_get_bullets_items(lua_State *L) {
+    Bullets **ud = (Bullets **)luaL_checkudata(L, 1, "BulletsMeta");
+    Bullets *bullets = *ud;
+
+    // Create a new table to represent items
+    lua_newtable(L);
+
+    for (size_t i = 0; i < bullets->count; ++i) {
+        lua_pushinteger(L, 69); // Push the Bullet ID
+        lua_seti(L, -2, i + 1); // Set table index (1-based)
+    }
+
+    return 1; // Number of return values (the new table)
+}
+
 int main(void) {
+    lua_State *L = luaL_newstate();
+    if (L == NULL) {
+        log_error("Failed to init Lua State!");
+        return 1;
+    } else {
+        log_debug("Successfully initialized Lua State!");
+        luaL_openlibs(L);
+    }
+
+    if (luaL_dofile(L, SCRIPT_PATH"test.lua") != LUA_OK) {
+        log_error("LUA ERROR: %s", lua_tostring(L, -1));
+        lua_pop(L, 1);
+        return 1;
+    }
+
+    luaL_newmetatable(L, "BulletsMeta");
+
+    lua_pushcfunction(L, lua_get_bullets_count);
+    lua_setfield(L, -2, "get_count");
+
+    lua_pushcfunction(L, lua_get_bullets_items);
+    lua_setfield(L, -2, "get_items");
+
+    Bullets *ud = (Bullets *)lua_newuserdata(L, sizeof(Bullets));
+    *ud = bullets;
+
+    luaL_getmetatable(L, "BulletsMeta");
+    lua_setmetatable(L, -2);
+
+    lua_getglobal(L, "Pattern1");
+    lua_pushvalue(L, -2);
+    LUA_CALL(1, 0);
+
+    // lua_getglobal(L, "Add");
+    // lua_pushnumber(L, 2);
+    // lua_pushnumber(L, 3);
+    //
+    // LUA_CALL(2, 1);
+
+
 	ren_tex = init_window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SCALE, "Bullet Hell", &WIDTH, &HEIGHT);
 	SetTargetFPS(60);
 	SetExitKey(0);
@@ -528,6 +602,7 @@ int main(void) {
         free_textbox(tbox);
     }
 
+    lua_close(L);
 	close_window(ren_tex);
 	return 0;
 }

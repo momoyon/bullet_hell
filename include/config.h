@@ -38,6 +38,7 @@ extern Arena str_arena;
 #define SPRITE_SCALE 2.f
 #define TEXTURE_PATH "resources/gfx/"
 #define HITBOX_PATH "resources/hbox/"
+#define SCRIPT_PATH "resources/scripts/"
 
 /// NOTE: RUMIA
 #define RUMIA_SHOT_TEXPATH "resources/gfx/rumia_shot.png"
