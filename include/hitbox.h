@@ -12,8 +12,9 @@ struct Hitbox {
 
 
 bool load_hitbox_from_file(Hitbox *hbox, const char *filepath);
-bool save_hitbox_to_file(Hitbox *hbox, const char *filepath);
+bool save_hitbox_to_file(const Hitbox *hbox, const char *filepath);
 void draw_hitbox(Hitbox *hbox);
 void draw_hitbox_offsetted(Hitbox *hbox, Vector2 offset);
+void draw_hitbox_offsetted_scaled(Hitbox *hbox, Vector2 offset, Vector2 scl);
 
 #endif // HITBOX_H_

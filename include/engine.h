@@ -20,6 +20,7 @@ Vector2 v2(float x, float y);
 #define v2_sub Vector2Subtract
 #define v2_mag2 Vector2LengthSqr
 #define v2_scale Vector2Scale
+#define v2_mul Vector2Multiply
 float v2_radians(Vector2 v);
 Vector2 v2_from_radians(float r);
 Vector2 v2_from_degrees(float d);
@@ -31,6 +32,34 @@ typedef struct {
 
 Vector2i v2vi(Vector2 v);
 bool v2i_equal(Vector2i a, Vector2i b);
+
+// TextBox
+typedef struct Textbox Textbox;
+
+struct Textbox {
+    char *buff;
+    size_t buff_size;
+    int cursor;
+    const char *name;
+    Font font;
+    Vector2 pos;
+    int font_size;
+    Color active_color;
+    Color inactive_color;
+    bool active;
+    Vector2 size;
+    bool ignoring_input;
+
+    int activate_key;
+    int deactivate_key;
+};
+
+Textbox make_textbox(Font font, int fs, Color active_color, Color inactive_color, Vector2 pos, Vector2 size, size_t buff_size, const char *name);
+void free_textbox(Textbox *tbox);
+bool update_textbox(Textbox *tbox);
+bool input_to_textbox(Textbox *tbox);
+void set_textbox_keys(Textbox *tbox, int activate, int deactivate);
+void draw_textbox(Textbox *tbox);
 
 // Rectangle
 bool rect_contains_point(Rectangle r1, Vector2 p);
@@ -70,6 +99,7 @@ Vector2 get_mpos_scaled(float scl);
 
 // Input
 bool input_to_buff(char *buff, size_t buff_cap, int *cursor);
+bool input_to_buff_ignored(char *buff, size_t buff_cap, int *cursor, char ignore, bool *ignoring);
 
 // Assets Manager
 typedef struct {
@@ -244,6 +274,74 @@ Vector2i v2vi(Vector2 v) { return CLITERAL(Vector2i) { (int)v.x, (int)v.y }; }
 
 bool v2i_equal(Vector2i a, Vector2i b) {
 	return a.x == b.x && a.y == b.y;
+}
+
+// TextBox
+Textbox make_textbox(Font font, int fs, Color active_color, Color inactive_color, Vector2 pos, Vector2 size, size_t buff_size, const char *name) {
+    Textbox tbox = {
+        .buff = calloc(buff_size, sizeof(char)),
+        .buff_size = buff_size,
+        .name = name,
+        .font = font,
+        .pos = pos,
+        .size = size,
+        .font_size = fs,
+        .active_color = active_color,
+        .inactive_color = inactive_color,
+        .ignoring_input = true,
+    };
+
+    return tbox;
+}
+
+void free_textbox(Textbox *tbox) {
+    if (!tbox) return;
+    if (tbox->buff) free(tbox->buff);
+}
+
+bool update_textbox(Textbox *tbox) {
+    if (tbox->active) {
+        if (IsKeyDown(KEY_LEFT_ALT) && IsKeyPressed(tbox->deactivate_key)) {
+            tbox->active = false;
+            tbox->ignoring_input = true;
+        }
+    } else {
+        if (IsKeyPressed(tbox->activate_key)) {
+            tbox->active = true;
+        }
+    }
+
+    return tbox->active;
+}
+
+bool input_to_textbox(Textbox *tbox) {
+    if (!tbox->active) return false;
+    if (input_to_buff_ignored(tbox->buff, tbox->buff_size, &tbox->cursor, tbox->activate_key+32, &tbox->ignoring_input)) {
+        tbox->ignoring_input = true;
+        return true;
+    }
+    return false;
+}
+
+void set_textbox_keys(Textbox *tbox, int activate, int deactivate) {
+    tbox->activate_key = activate;
+    tbox->deactivate_key = deactivate;
+}
+
+void draw_textbox(Textbox *tbox) {
+    float buff_measured = MeasureTextEx(tbox->font, tbox->buff, tbox->font_size, 1.f).x;
+    float name_measured = MeasureTextEx(tbox->font, tbox->name, tbox->font_size, 1.f).x;
+    float measure_pad = 20.f;
+    int buff_x = tbox->pos.x + name_measured;
+    Rectangle rect = {
+        .x = buff_x + measure_pad,
+        .y = tbox->pos.y,
+        .width = fmaxf(tbox->size.x, buff_measured*1.1),
+        .height = tbox->size.y,
+    };
+    draw_text(tbox->font, tbox->name, tbox->pos, tbox->font_size, tbox->active ? tbox->active_color : tbox->inactive_color);
+    draw_text(tbox->font, tbox->buff, v2(buff_x+20+2, tbox->pos.y), tbox->font_size, tbox->active ? tbox->active_color : tbox->inactive_color);
+    DrawRectangleLinesEx(rect, 1, tbox->active ? tbox->active_color : tbox->inactive_color);
 }
 
 // Rectangle
@@ -441,6 +539,10 @@ Vector2 get_mpos_scaled(float scl) {
 
 // Input
 bool input_to_buff(char *buff, size_t buff_cap, int *cursor) {
+    return input_to_buff_ignored(buff, buff_cap, cursor, 0, NULL);
+}
+
+bool input_to_buff_ignored(char *buff, size_t buff_cap, int *cursor, char ignore, bool *ignoring) {
     int ch = 0;
 
     if ((*cursor) < 0) (*cursor) = 0;
@@ -461,12 +563,18 @@ bool input_to_buff(char *buff, size_t buff_cap, int *cursor) {
 
         ch = GetCharPressed();
 
+        if (ignoring && *ignoring && ignore > 0 && ch == ignore) {
+            *ignoring = false;
+            continue;
+        }
+
         if (ch > 0) {
             buff[(*cursor)++] = (char)ch;
         }
 
     } while (ch > 0);
     return false;
+
 }
 
 // Assets Manager

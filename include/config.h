@@ -27,6 +27,8 @@ extern float cam_zoom;
 #define CAM_SPEED 100.f
 #define CAMERA_DEFAULT_ZOOM 1.5f
 #define SPRITE_SCALE 2.f
+#define TEXTURE_PATH "resources/gfx/"
+#define HITBOX_PATH "resources/hbox/"
 
 /// NOTE: RUMIA
 #define RUMIA_SHOT_TEXPATH "resources/gfx/rumia_shot.png"

@@ -65,7 +65,7 @@ bool load_hitbox_from_file(Hitbox *hbox, const char *filepath) {
     return true;
 }
 
-bool save_hitbox_to_file(Hitbox *hbox, const char *filepath) {
+bool save_hitbox_to_file(const Hitbox *hbox, const char *filepath) {
     FILE *f = fopen(filepath, "w");
 
     if (!f) {
@@ -89,5 +89,14 @@ void draw_hitbox(Hitbox *hbox) {
 }
 
 void draw_hitbox_offsetted(Hitbox *hbox, Vector2 offset) {
-    DrawRectangleV(v2_add(hbox->pos, offset), hbox->size, ColorAlpha(RED, 0.75));
+    Vector2 p = v2_add(hbox->pos, offset);
+    DrawRectangleV(p, hbox->size, ColorAlpha(RED, 0.75));
+    DrawRectangleLines(p.x, p.y, hbox->size.x, hbox->size.y, WHITE);
+}
+
+void draw_hitbox_offsetted_scaled(Hitbox *hbox, Vector2 offset, Vector2 scl) {
+    Vector2 p = v2_add(v2_mul(hbox->pos, scl), offset);
+    Vector2 s = v2(hbox->size.x * scl.x, hbox->size.y * scl.y);
+    DrawRectangleV(p, s, ColorAlpha(RED, 0.75));
+    DrawRectangleLines(p.x, p.y, s.x, s.y, WHITE);
 }
