@@ -69,7 +69,7 @@ void control_entity(Entity *e, Control controls) {
 
         if (on_action_held(&controls, ACTION_FIRE) && on_alarm(&e->fire_alarm, GetFrameTime())) {
             Vector2 spawn_pos = v2(e->pos.x, e->pos.y - e->spr.height * 0.5);
-            Bullet shot = make_bullet(spawn_pos, TEXTURE_PATH"rumia_shot.png", 270, e->shot_speed, e->shot_hitbox);
+            Bullet shot = make_bullet(spawn_pos, TEXTURE_PATH"rumia_shot.png", 1, 1, 270, e->shot_speed, e->shot_hitbox);
             darr_append((*e->shots_ptr), shot);
         }
 	}

@@ -111,7 +111,7 @@ Bullets pattern1(Vector2 pos, void *userdata) {
 	}
 	float *angle = (float*)userdata;
     Hitbox hbox = {0};
-	Bullet b = make_bullet(pos, TEXTURE_PATH"bullet.png", *angle, 100.f, hbox);
+	Bullet b = make_bullet(pos, TEXTURE_PATH"bullet.png", 1, 1, *angle, 100.f, hbox);
 	set_bullet_speed(&b, 500.f, 100.f, 500.f, -200.f);
 	*angle += GetFrameTime() * 400.f;
 
@@ -385,6 +385,15 @@ int main(void) {
                 for (int i = 0; i < shots.count; ++i) {
                     Bullet *sh = &shots.items[i];
                     update_bullet(sh);
+
+                    // Collision with enemies
+                    for (int j = 0; j < enemies.count; ++j) {
+                        Entity *enm = &enemies.items[j];
+
+                        if (check_hitbox_on_hitbox_collision(sh->pos, sh->hitbox, enm->pos, enm->hitbox)) {
+                            sh->dead = true;
+                        }
+                    }
 
                     // Delete when dead
                     if (sh->dead) {

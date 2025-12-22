@@ -62,6 +62,7 @@ void center_sprite_origin(Sprite* spr);
 void draw_sprite(Sprite* spr);
 void animate_sprite_hframes(Sprite* spr, float delta);
 void free_sprite(Sprite* spr);
+void set_sprite_scale_scalar(Sprite *spr, float scl);
 
 // TextBox
 typedef struct Textbox Textbox;
@@ -370,6 +371,10 @@ void animate_sprite_hframes(Sprite* spr, float delta) {
 
 void free_sprite(Sprite* spr) {
 		(void)spr;
+}
+
+void set_sprite_scale_scalar(Sprite *spr, float scl) {
+    spr->scale = v2xx(scl);
 }
 
 // TextBox

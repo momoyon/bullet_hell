@@ -19,7 +19,11 @@ struct Bullet {
 
 	Texture2D tex;
     Sprite spr;
-    bool dead;
+
+    bool spawning;
+    bool dying, dead;
+
+    float spawn_scale, dead_scale;
 };
 
 struct Bullets {
@@ -28,7 +32,7 @@ struct Bullets {
 	size_t capacity;
 };
 
-Bullet make_bullet(Vector2 pos, const char *texpath, float direction_degrees, float speed, Hitbox hbox);
+Bullet make_bullet(Vector2 pos, const char *texpath, int hframes, int vframes, float direction_degrees, float speed, Hitbox hbox);
 void set_bullet_speed(Bullet *b, float speed, float min, float max, float delta);
 void update_bullet(Bullet *b);
 void draw_bullet(Bullet *b);
