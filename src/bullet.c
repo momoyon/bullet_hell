@@ -1,16 +1,16 @@
+#include "hitbox.h"
 #include <bullet.h>
 #include <config.h>
 #include <engine.h>
 
-Bullet make_bullet(Vector2 pos, float direction_degrees, float speed, float hitbox_radius, float radius) {
+Bullet make_bullet(Vector2 pos, const char *texpath, float direction_degrees, float speed, Hitbox hbox) {
 	Bullet b = {
 		.pos = pos,
 		.dir = v2_from_degrees(direction_degrees),
-		.hitbox_radius = hitbox_radius,
-		.radius = radius,
+		.hitbox = hbox,
 	};
 
-	ASSERT(load_texture(&tm, "resources/gfx/bullet.png", &b.tex), "Texture fail");
+	ASSERT(load_texture(&tm, texpath, &b.tex), "Texture fail");
 
 	set_bullet_speed(&b, speed, speed, speed, 0.f);
 
@@ -48,5 +48,8 @@ void draw_bullet(Bullet *b) {
 	};
 	Vector2 origin = v2(b->tex.width*0.5, b->tex.height*0.5);
 	DrawTexturePro(b->tex, src, dst, origin, 0, WHITE);
-	// RLAPI void DrawTexturePro(Texture2D texture, Rectangle source, Rectangle dest, Vector2 origin, float rotation, Color tint); // Draw a part of a texture defined by a rectangle with 'pro' parameters
+
+    if (DEBUG_DRAW) {
+        draw_hitbox_offsetted(&b->hitbox, b->pos);
+    }
 }

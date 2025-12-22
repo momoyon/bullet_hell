@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <engine.h>
 #include <bullet.h>
-#include <shot.h>
+#include <entity.h>
 
 #include <control_config.h>
 
@@ -35,7 +35,8 @@ extern float cam_zoom;
 #define RUMIA_SHOT_SPEED 1500
 
 extern Bullets bullets;
-extern Shots shots;
+extern Bullets shots;
+extern Entities enemies;
 
 extern Arena arena;
 extern Arena temp_arena;

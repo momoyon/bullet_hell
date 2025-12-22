@@ -37,7 +37,8 @@ Arena arena;
 Arena temp_arena;
 Arena str_arena;
 Bullets bullets = {0};
-Shots shots = {0};
+Bullets shots = {0};
+Entities enemies = {0};
 
 #define STB_DS_IMPLEMENTATION
 #include <stb_ds.h>
@@ -109,7 +110,8 @@ Bullets pattern1(Vector2 pos, void *userdata) {
 		return _bullets;
 	}
 	float *angle = (float*)userdata;
-	Bullet b = make_bullet(pos, *angle, 100.f, 4.f, 8.f);
+    Hitbox hbox = {0};
+	Bullet b = make_bullet(pos, TEXTURE_PATH"bullet.png", *angle, 100.f, hbox);
 	set_bullet_speed(&b, 500.f, 100.f, 500.f, -200.f);
 	*angle += GetFrameTime() * 400.f;
 
@@ -163,7 +165,10 @@ int main(void) {
     if (!load_hitbox_from_file(&player_hitbox_bounding, HITBOX_PATH"rumia_player_bounding.hitbox")) return 1;
     player_hitbox.color = YELLOW;
     player_hitbox_bounding.color = GREEN;
-	Entity player = make_player(&shots, v2(WIDTH*0.5, HEIGHT*0.5), 0.05f, 400.f, 200.f, "resources/gfx/rumia_player.png", 3, 1, player_hitbox, player_hitbox_bounding, RUMIA_SHOT_SPEED, 8.f, RUMIA_SHOT_TEXPATH);
+    Hitbox shot_hitbox = {0};
+    if (!load_hitbox_from_file(&shot_hitbox, HITBOX_PATH"rumia_shot.hitbox")) return 1;
+    shot_hitbox.color = BLUE;
+	Entity player = make_player(&shots, v2(WIDTH*0.5, HEIGHT*0.5), 0.05f, 400.f, 200.f, "resources/gfx/rumia_player.png", 3, 1, player_hitbox, player_hitbox_bounding, RUMIA_SHOT_SPEED, shot_hitbox, RUMIA_SHOT_TEXPATH);
 
 	font = GetFontDefault();
 	if (!IsFontReady(font)) {
@@ -231,6 +236,16 @@ int main(void) {
                 if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
                     em.pos = m;
                     update_bullet_emitter(&em);
+                }
+
+                /// @DEBUG
+                if (IsKeyPressed(KEY_E)) {
+                    Hitbox hbox = {0};
+                    load_hitbox_from_file(&hbox, HITBOX_PATH"spawnite.hitbox");
+                    hbox.color = RED;
+                    Entity e = make_entity(m, TEXTURE_PATH"spawnite.png", 1, 1, 200.f, hbox);
+
+                    darr_append(enemies, e);
                 }
 
             } break;
@@ -347,7 +362,7 @@ int main(void) {
             default: ASSERT(false, "UNREACHABLE!");
         }
 
-		// Update
+		/// NOTE: Update
 
 		// State-specific Update
         switch (current_state) {
@@ -368,14 +383,30 @@ int main(void) {
 
                 // Update Shots
                 for (int i = 0; i < shots.count; ++i) {
-                    Shot *sh = &shots.items[i];
-                    update_shot(sh);
+                    Bullet *sh = &shots.items[i];
+                    update_bullet(sh);
+
+                    // Delete when dead
+                    if (sh->dead) {
+                        darr_delete(shots, Bullet, i);
+                    }
 
                     // Delete when outofbounds
                     if (!CheckCollisionPointRec(sh->pos, bounds)) {
-                        darr_delete(shots, Shot, i);
+                        darr_delete(shots, Bullet, i);
                     }
                 }
+
+                // Update Enemies
+                for (int i = enemies.count-1; i >= 0; --i) {
+                    Entity *e = &enemies.items[i];
+                    update_entity(e);
+
+                    if (e->dead) {
+                        darr_delete(enemies, Entity, i);
+                    }
+                }
+
             } break;
             case STATE_EDIT_HITBOX: {
                 if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))   { moving_offset = v2_sub(m, editing_hitbox_screen_pos); }
@@ -388,21 +419,31 @@ int main(void) {
             default: ASSERT(false, "UNREACHABLE!");
         }
 
-		// Draw
+		/// NOTE: Draw
 		ClearBackground(BLACK);
         /// @DEBUG
         DrawTextureEx(title_screen_tex, v2(0,0), 0, 1, WHITE);
 
 		draw_entity(&player);
 
+        // Draw Enemies
+        for (int i = enemies.count-1; i >= 0; --i) {
+            Entity *e = &enemies.items[i];
+            draw_entity(e);
+        }
+
+        // Draw Bullets
 		for (int i = 0; i < bullets.count; ++i) {
 			Bullet *b = &bullets.items[i];
 			draw_bullet(b);
 		}
+
+        // Draw Shots
 		for (int i = 0; i < shots.count; ++i) {
-			Shot *sh = &shots.items[i];
-			draw_shot(sh);
+			Bullet *sh = &shots.items[i];
+			draw_bullet(sh);
 		}
+
 
         // Mode-specific Draw
         switch (current_state) {

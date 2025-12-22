@@ -19,4 +19,6 @@ void draw_hitbox(Hitbox *hbox);
 void draw_hitbox_offsetted(Hitbox *hbox, Vector2 offset);
 void draw_hitbox_offsetted_scaled(Hitbox *hbox, Vector2 offset, Vector2 scl);
 
+bool check_hitbox_on_hitbox_collision(Vector2 a_pos, Hitbox a, Vector2 b_pos, Hitbox b);
+
 #endif // HITBOX_H_

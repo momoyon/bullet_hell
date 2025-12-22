@@ -2,19 +2,24 @@
 #include "control_config.h"
 #include "hitbox.h"
 #include "raylib.h"
-#include "shot.h"
 #include <entity.h>
 #include <config.h>
 
-Entity make_entity(Vector2 pos, float speed, Hitbox hitbox) {
-	return (Entity) {
+Entity make_entity(Vector2 pos, const char *texpath, int hframes, int vframes, float speed, Hitbox hitbox) {
+	Entity res = {
 		.pos = pos,
 		.speed = speed,
         .hitbox = hitbox,
+        .texpath = texpath,
 	};
+    load_texture(&tm, texpath, &res.tex);
+    ASSERT(init_sprite(&res.spr, res.tex, hframes, vframes), "FAILED SPRITE INIT");
+    center_sprite_origin(&res.spr);
+
+    return res;
 }
 
-Entity make_player(Shots *shots_ptr, Vector2 pos, float fire_rate, float unfocus_speed, float focus_speed, const char *texpath, int hframes, int vframes, Hitbox hitbox, Hitbox bounding_hbox, float shot_speed, float shot_hitbox, const char *shot_texpath) {
+Entity make_player(Bullets *shots_ptr, Vector2 pos, float fire_rate, float unfocus_speed, float focus_speed, const char *texpath, int hframes, int vframes, Hitbox hitbox, Hitbox bounding_hbox, float shot_speed, Hitbox shot_hitbox, const char *shot_texpath) {
     Entity res = {
         .fire_rate = fire_rate,
         .shots_ptr = shots_ptr,
@@ -64,7 +69,7 @@ void control_entity(Entity *e, Control controls) {
 
         if (on_action_held(&controls, ACTION_FIRE) && on_alarm(&e->fire_alarm, GetFrameTime())) {
             Vector2 spawn_pos = v2(e->pos.x, e->pos.y - e->spr.height * 0.5);
-            Shot shot = make_shot(spawn_pos, 270, e->shot_speed, e->shot_hitbox, e->shot_texpath);
+            Bullet shot = make_bullet(spawn_pos, TEXTURE_PATH"rumia_shot.png", 270, e->shot_speed, e->shot_hitbox);
             darr_append((*e->shots_ptr), shot);
         }
 	}

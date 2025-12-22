@@ -108,3 +108,21 @@ void draw_hitbox_offsetted_scaled(Hitbox *hbox, Vector2 offset, Vector2 scl) {
     DrawRectangleV(p, s, ColorAlpha(hbox->color, 0.75));
     DrawRectangleLines(p.x, p.y, s.x, s.y, WHITE);
 }
+
+bool check_hitbox_on_hitbox_collision(Vector2 a_pos, Hitbox a, Vector2 b_pos, Hitbox b) {
+    Rectangle rect_a = {
+        .x = a_pos.x + a.pos.x,
+        .y = a_pos.y + a.pos.y,
+        .width = a.size.x,
+        .height = a.size.y,
+    };
+
+    Rectangle rect_b = {
+        .x = b_pos.x + b.pos.x,
+        .y = b_pos.y + b.pos.y,
+        .width = b.size.x,
+        .height = b.size.y,
+    };
+
+    return CheckCollisionRecs(rect_a, rect_b);
+}
