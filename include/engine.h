@@ -52,9 +52,10 @@ struct Textbox {
 
     int activate_key;
     int deactivate_key;
+    char ignore_char;
 };
 
-Textbox make_textbox(Font font, int fs, Color active_color, Color inactive_color, Vector2 pos, Vector2 size, size_t buff_size, const char *name);
+Textbox make_textbox(Font font, int fs, Color active_color, Color inactive_color, Vector2 pos, Vector2 size, size_t buff_size, const char *name, char ignore_char);
 void free_textbox(Textbox *tbox);
 bool update_textbox(Textbox *tbox);
 bool input_to_textbox(Textbox *tbox);
@@ -277,7 +278,7 @@ bool v2i_equal(Vector2i a, Vector2i b) {
 }
 
 // TextBox
-Textbox make_textbox(Font font, int fs, Color active_color, Color inactive_color, Vector2 pos, Vector2 size, size_t buff_size, const char *name) {
+Textbox make_textbox(Font font, int fs, Color active_color, Color inactive_color, Vector2 pos, Vector2 size, size_t buff_size, const char *name, char ignore_char) {
     Textbox tbox = {
         .buff = calloc(buff_size, sizeof(char)),
         .buff_size = buff_size,
@@ -289,6 +290,7 @@ Textbox make_textbox(Font font, int fs, Color active_color, Color inactive_color
         .active_color = active_color,
         .inactive_color = inactive_color,
         .ignoring_input = true,
+        .ignore_char = ignore_char,
     };
 
     return tbox;
@@ -316,7 +318,7 @@ bool update_textbox(Textbox *tbox) {
 
 bool input_to_textbox(Textbox *tbox) {
     if (!tbox->active) return false;
-    if (input_to_buff_ignored(tbox->buff, tbox->buff_size, &tbox->cursor, tbox->activate_key+32, &tbox->ignoring_input)) {
+    if (input_to_buff_ignored(tbox->buff, tbox->buff_size, &tbox->cursor, tbox->ignore_char, &tbox->ignoring_input)) {
         tbox->ignoring_input = true;
         return true;
     }
