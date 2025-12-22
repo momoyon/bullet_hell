@@ -22,8 +22,8 @@ struct Bullet {
 
     bool spawning;
     bool dying, dead;
-
     float spawn_scale, dead_scale;
+    float anim_speed;
 };
 
 struct Bullets {

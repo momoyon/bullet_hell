@@ -371,7 +371,7 @@ int main(void) {
                 bind(&player.pos, player.bounding_hitbox, bounds);
                 update_entity(&player);
                 // Update Bullets
-                for (int i = 0; i < bullets.count; ++i) {
+                for (int i = bullets.count-1; i >= 0; --i) {
                     Bullet *b = &bullets.items[i];
                     update_bullet(b);
 
@@ -391,7 +391,7 @@ int main(void) {
                         Entity *enm = &enemies.items[j];
 
                         if (check_hitbox_on_hitbox_collision(sh->pos, sh->hitbox, enm->pos, enm->hitbox)) {
-                            sh->dead = true;
+                            sh->dying = true;
                         }
                     }
 
