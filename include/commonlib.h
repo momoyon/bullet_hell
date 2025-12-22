@@ -544,7 +544,7 @@ float c_clampf(float v, float min, float max) {
 }
 
 float c_randomf(float from, float to) {
-	float r = rand() / RAND_MAX;
+	float r = (float)rand() / (float)RAND_MAX;
 	return from + (to - from) * r;
 }
 

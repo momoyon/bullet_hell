@@ -47,16 +47,16 @@ Entity make_player(Bullets *shots_ptr, Vector2 pos, float fire_rate, float unfoc
 
 void control_entity(Entity *e, Control controls) {
 	if (on_action_held(&controls, ACTION_MOVE_UP)) {
-		e->pos.y -= e->speed * GetFrameTime();
+		e->pos.y -= e->speed * modified_delta;
 	}
 	if (on_action_held(&controls, ACTION_MOVE_DOWN)) {
-		e->pos.y += e->speed * GetFrameTime();
+		e->pos.y += e->speed * modified_delta;
 	}
 	if (on_action_held(&controls, ACTION_MOVE_LEFT)) {
-		e->pos.x -= e->speed * GetFrameTime();
+		e->pos.x -= e->speed * modified_delta;
 	}
 	if (on_action_held(&controls, ACTION_MOVE_RIGHT)) {
-		e->pos.x += e->speed * GetFrameTime();
+		e->pos.x += e->speed * modified_delta;
 	}
 
 	if (e->is_player) {
@@ -67,9 +67,9 @@ void control_entity(Entity *e, Control controls) {
 			e->speed = e->unfocus_speed;
 		}
 
-        if (on_action_held(&controls, ACTION_FIRE) && on_alarm(&e->fire_alarm, GetFrameTime())) {
+        if (on_action_held(&controls, ACTION_FIRE) && on_alarm(&e->fire_alarm, modified_delta)) {
             Vector2 spawn_pos = v2(e->pos.x, e->pos.y - e->spr.height * 0.5);
-            Bullet shot = make_bullet(spawn_pos, TEXTURE_PATH"rumia_shot.png", 1, 1, 270, e->shot_speed, e->shot_hitbox);
+            Bullet shot = make_bullet(spawn_pos, TEXTURE_PATH"rumia_shot.png", 1, 1, 270+randomf(-1, 1), e->shot_speed, e->shot_hitbox);
             darr_append((*e->shots_ptr), shot);
         }
 	}
@@ -77,7 +77,7 @@ void control_entity(Entity *e, Control controls) {
 
 void update_entity(Entity *e) {
     e->spr.pos = e->pos;
-    animate_sprite_hframes(&e->spr, GetFrameTime());
+    animate_sprite_hframes(&e->spr, modified_delta);
 }
 
 void draw_entity(Entity *e) {

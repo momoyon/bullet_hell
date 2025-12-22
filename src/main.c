@@ -31,8 +31,9 @@ bool DEBUG_DRAW = false;
 RenderTexture2D ren_tex;
 Texture_manager tm;
 Font font;
-Camera2D cam;
-float cam_zoom = 1.0;
+float delta = 0.f;
+float modified_delta = 0.f;
+float delta_modification = 1.f;
 Arena arena;
 Arena temp_arena;
 Arena str_arena;
@@ -113,7 +114,7 @@ Bullets pattern1(Vector2 pos, void *userdata) {
     Hitbox hbox = {0};
 	Bullet b = make_bullet(pos, TEXTURE_PATH"bullet.png", 1, 1, *angle, 100.f, hbox);
 	set_bullet_speed(&b, 500.f, 100.f, 500.f, -200.f);
-	*angle += GetFrameTime() * 400.f;
+	*angle += modified_delta * 400.f;
 
 	darr_append(_bullets, b);
 
@@ -215,6 +216,8 @@ int main(void) {
 	Bullet_emitter em = make_bullet_emitter(v2(WIDTH*0.5, HEIGHT*0.5), &bullets, 0.05, pattern1, (void*)&angle);
 
 	while (!WindowShouldClose()) {
+        delta = GetFrameTime();
+        modified_delta = delta * delta_modification;
 		arena_reset(&temp_arena);
 		arena_reset(&str_arena);
 
@@ -228,6 +231,17 @@ int main(void) {
             if (next >= STATE_COUNT) next = 0;
             CHANGE_STATE(next);
         }
+
+        if (IsKeyDown(KEY_F7)) {
+            delta_modification -= 0.01f;
+        }
+        if (IsKeyDown(KEY_F8)) {
+            delta_modification += 0.01f;
+        }
+        if (IsKeyDown(KEY_F9)) {
+            delta_modification = 1.f;
+        }
+
 
         // State-specific Input
         switch (current_state) {
@@ -354,7 +368,7 @@ int main(void) {
 
                 // Scaling
                 if (editing_hitbox_scale <= 1) editing_hitbox_scale = 1;
-                editing_hitbox_scale += GetMouseWheelMoveV().y * GetFrameTime() * 100.f * (IsKeyDown(KEY_LEFT_SHIFT) ? 0.5f : 1.f);
+                editing_hitbox_scale += GetMouseWheelMoveV().y * delta * 100.f * (IsKeyDown(KEY_LEFT_SHIFT) ? 0.5f : 1.f);
 
 
             } break;
@@ -496,6 +510,10 @@ int main(void) {
             Vector2 p = {10, 10};
             int font_size = 24;
             draw_info_text(&p, arena_alloc_str(str_arena, "State: %s", state_as_str(current_state)), font_size, WHITE);
+            draw_info_text(&p, arena_alloc_str(str_arena, "Delta [mod * dt: mod_dt]: %f * %f: %f", delta_modification, delta, modified_delta), font_size, WHITE);
+            draw_info_text(&p, arena_alloc_str(str_arena, "Bullets count: %zu", bullets.count), font_size, RED);
+            draw_info_text(&p, arena_alloc_str(str_arena, "Shots count: %zu", shots.count), font_size, RED);
+            draw_info_text(&p, arena_alloc_str(str_arena, "Enemies count: %zu", enemies.count), font_size, RED);
 
             DrawFPS(0, 0);
         }

@@ -1,3 +1,4 @@
+#include "config.h"
 #include <bullet_emitter.h>
 
 Bullet_emitter make_bullet_emitter(Vector2 pos, Bullets *bullets_ptr, float fire_rate, Bullet_pattern_fn pattern_fn, void *userdata) {
@@ -14,7 +15,7 @@ Bullet_emitter make_bullet_emitter(Vector2 pos, Bullets *bullets_ptr, float fire
 }
 
 void update_bullet_emitter(Bullet_emitter *em) {
-	if (on_alarm(&em->alarm, GetFrameTime())) {
+	if (on_alarm(&em->alarm, modified_delta)) {
 		if (em->pattern_fn) {
 			Bullets bllts = em->pattern_fn(em->pos, em->userdata);
 
