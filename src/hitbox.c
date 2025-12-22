@@ -7,6 +7,10 @@
 #include <errno.h>
 
 bool load_hitbox_from_file(Hitbox *hbox, const char *filepath) {
+    return load_hitbox_from_file_scaled(hbox, filepath, 1.0f);
+}
+
+bool load_hitbox_from_file_scaled(Hitbox *hbox, const char *filepath, float scl) {
     int filesize = -1;
     char *file = (char *)read_file(filepath, &filesize);
 
@@ -58,14 +62,18 @@ bool load_hitbox_from_file(Hitbox *hbox, const char *filepath) {
 
     hbox->pos.x  = pos_x;
     hbox->pos.y  = pos_y;
-    hbox->size.x = size_x;
-    hbox->size.y = size_y;
+    hbox->size.x = size_x * scl;
+    hbox->size.y = size_y * scl;
 
     free(file);
     return true;
 }
 
 bool save_hitbox_to_file(const Hitbox *hbox, const char *filepath) {
+    return save_hitbox_to_file_scaled(hbox, filepath, 1.f);
+}
+
+bool save_hitbox_to_file_scaled(const Hitbox *hbox, const char *filepath, float scl) {
     FILE *f = fopen(filepath, "w");
 
     if (!f) {
@@ -76,7 +84,7 @@ bool save_hitbox_to_file(const Hitbox *hbox, const char *filepath) {
 #define BUFF_SIZE 1024
     char buff[BUFF_SIZE] = {0};
 
-    int written = snprintf(buff, BUFF_SIZE, "%f,%f %f,%f", hbox->pos.x, hbox->pos.y, hbox->size.x, hbox->size.y);
+    int written = snprintf(buff, BUFF_SIZE, "%f,%f %f,%f", hbox->pos.x, hbox->pos.y, hbox->size.x * scl, hbox->size.y * scl);
 
     // NOTE: We just assume this works
     fwrite((void *)buff, written, 1, f);
@@ -85,18 +93,18 @@ bool save_hitbox_to_file(const Hitbox *hbox, const char *filepath) {
 }
 
 void draw_hitbox(Hitbox *hbox) {
-    DrawRectangleV(hbox->pos, hbox->size, ColorAlpha(RED, 0.75));
+    DrawRectangleV(hbox->pos, hbox->size, ColorAlpha(hbox->color, 0.75));
 }
 
 void draw_hitbox_offsetted(Hitbox *hbox, Vector2 offset) {
     Vector2 p = v2_add(hbox->pos, offset);
-    DrawRectangleV(p, hbox->size, ColorAlpha(RED, 0.75));
+    DrawRectangleV(p, hbox->size, ColorAlpha(hbox->color, 0.75));
     DrawRectangleLines(p.x, p.y, hbox->size.x, hbox->size.y, WHITE);
 }
 
 void draw_hitbox_offsetted_scaled(Hitbox *hbox, Vector2 offset, Vector2 scl) {
     Vector2 p = v2_add(v2_mul(hbox->pos, scl), offset);
     Vector2 s = v2(hbox->size.x * scl.x, hbox->size.y * scl.y);
-    DrawRectangleV(p, s, ColorAlpha(RED, 0.75));
+    DrawRectangleV(p, s, ColorAlpha(hbox->color, 0.75));
     DrawRectangleLines(p.x, p.y, s.x, s.y, WHITE);
 }

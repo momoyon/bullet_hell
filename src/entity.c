@@ -14,7 +14,7 @@ Entity make_entity(Vector2 pos, float speed, Hitbox hitbox) {
 	};
 }
 
-Entity make_player(Shots *shots_ptr, Vector2 pos, float fire_rate, float unfocus_speed, float focus_speed, const char *texpath, Hitbox hitbox, float shot_speed, float shot_hitbox, const char *shot_texpath) {
+Entity make_player(Shots *shots_ptr, Vector2 pos, float fire_rate, float unfocus_speed, float focus_speed, const char *texpath, int hframes, int vframes, Hitbox hitbox, Hitbox bounding_hbox, float shot_speed, float shot_hitbox, const char *shot_texpath) {
     Entity res = {
         .fire_rate = fire_rate,
         .shots_ptr = shots_ptr,
@@ -24,12 +24,16 @@ Entity make_player(Shots *shots_ptr, Vector2 pos, float fire_rate, float unfocus
 		.unfocus_speed = unfocus_speed,
 		.focus_speed = focus_speed,
         .hitbox = hitbox,
+        .bounding_hitbox = bounding_hbox,
         .shot_speed = shot_speed,
         .shot_hitbox = shot_hitbox,
         .shot_texpath = shot_texpath,
 	};
 
     load_texture(&tm, texpath, &res.tex);
+
+    ASSERT(init_sprite(&res.spr, res.tex, hframes, vframes), "FAILED SPRITE INIT");
+    center_sprite_origin(&res.spr);
 
     res.fire_alarm.alarm_time = fire_rate;
 
@@ -59,19 +63,26 @@ void control_entity(Entity *e, Control controls) {
 		}
 
         if (on_action_held(&controls, ACTION_FIRE) && on_alarm(&e->fire_alarm, GetFrameTime())) {
-            Shot shot = make_shot(e->pos, 270, e->shot_speed, e->shot_hitbox, e->shot_texpath);
+            Vector2 spawn_pos = v2(e->pos.x, e->pos.y - e->spr.height * 0.5);
+            Shot shot = make_shot(spawn_pos, 270, e->shot_speed, e->shot_hitbox, e->shot_texpath);
             darr_append((*e->shots_ptr), shot);
-            log_debug("FIRE");
         }
 	}
 }
 
+void update_entity(Entity *e) {
+    e->spr.pos = e->pos;
+    animate_sprite_hframes(&e->spr, GetFrameTime());
+}
+
 void draw_entity(Entity *e) {
     if (IsTextureReady(e->tex)) {
-        draw_texture_centered(e->tex, e->pos, v2xx(SPRITE_SCALE), 0, WHITE);
+        draw_sprite(&e->spr);
+        // draw_texture_centered(e->tex, e->pos, v2xx(1), 0, WHITE);
     }
 
 	if (DEBUG_DRAW) {
+        draw_hitbox_offsetted(&e->bounding_hitbox, e->pos);
         draw_hitbox_offsetted(&e->hitbox, e->pos);
         DrawCircleV(e->pos, 2.f, RED);
 	}

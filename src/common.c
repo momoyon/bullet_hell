@@ -2,11 +2,12 @@
 #include <engine.h>
 #include <config.h>
 
-void bind(Vector2 *p, Vector2 size, Rectangle bound) {
-	if (p->x < bound.x) p->x = bound.x;
-	if (p->x > bound.x + bound.width - size.x) p->x = bound.x + bound.width - size.x;
-	if (p->y < bound.y) p->y = bound.y;
-	if (p->y > bound.y + bound.height - size.y) p->y = bound.y + bound.height - size.y;
+void bind(Vector2 *p, Hitbox hbox, Rectangle bound) {
+    if (hbox.pos.x + p->x < bound.x) p->x = bound.x - hbox.pos.x;
+    if (hbox.pos.x + p->x + hbox.size.x > bound.x + bound.width) p->x = bound.x + bound.width - hbox.pos.x - hbox.size.x;
+
+    if (hbox.pos.y + p->y < bound.y) p->y = bound.y - hbox.pos.y;
+    if (hbox.pos.y + p->y + hbox.size.y > bound.y + bound.height) p->y = bound.y + bound.height - hbox.pos.y - hbox.size.y;
 }
 
 void draw_info_text(Vector2 *p, const char *text, int font_size, Color color) {
@@ -17,6 +18,7 @@ void draw_info_text(Vector2 *p, const char *text, int font_size, Color color) {
 // NOTE: You preload all textures here (used in loading)
 void load_all_textures(void) {
     load_texture(&tm, "resources/gfx/title_screen.png", NULL);
+    load_texture(&tm, "resources/gfx/rumia_player.png", NULL);
 }
 
 void draw_texture_centered(Texture2D tex, Vector2 pos, Vector2 scl, float rot, Color tint) {

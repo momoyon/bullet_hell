@@ -45,6 +45,7 @@
 
 #define os_get_timedate c_os_get_timedate
 #define os_file_exists c_os_file_exists
+#define os_list_files c_os_list_files
 
 #define log_error c_log_error
 #define log_info c_log_info
@@ -76,6 +77,7 @@
 #define sb_free c_sb_free
 
 #define String_view c_String_view
+#define String_array c_String_array
 
 #define shift_args c_shift_args
 
@@ -201,6 +203,7 @@ float c_mapf(float value, float from1, float to1, float from2, float to2);
 //
 
 typedef struct c_Arena c_Arena;
+typedef struct c_String_array c_String_array;
 
 //
 // ## Data Structures
@@ -369,19 +372,20 @@ typedef struct c_Arena c_Arena;
 
 void c_os_get_timedate(c_Arena* a);
 bool c_os_file_exists(cstr filename);
+c_String_array c_os_list_files(cstr dir);
 
 //
 // Logging
 //
 
 #define c_log_error(fmt, ...) do {\
-		fprintf(stderr, "%s"fmt"\n", "[ERROR] ", ##__VA_ARGS__);\
+		fprintf(stderr, "%s" fmt"\n", "[ERROR] ", ##__VA_ARGS__);\
 	} while (0)
 #define c_log_info(fmt, ...) do {\
-		fprintf(stdout, "%s"fmt"\n", "[INFO] ", ##__VA_ARGS__);\
+		fprintf(stdout, "%s" fmt"\n", "[INFO] ", ##__VA_ARGS__);\
 	} while (0)
 #define c_log_warning(fmt, ...) do {\
-		fprintf(stdout, "%s"fmt"\n", "[WARNING] ", ##__VA_ARGS__);\
+		fprintf(stdout, "%s" fmt"\n", "[WARNING] ", ##__VA_ARGS__);\
 	} while (0)
 #ifdef DEBUG
 #define c_log_debug(fmt, ...) do {\
@@ -458,6 +462,16 @@ void c_sb_append(c_String_builder* sb, char* data);
 void c_sb_append_char(c_String_builder* sb, char ch);
 void c_sb_append_null(c_String_builder *sb);
 void c_sb_free(c_String_builder *sb);
+
+//
+// String array
+//
+
+struct c_String_array {
+    char **items;
+    size_t count;
+    size_t capacity;
+};
 
 //
 // String view
@@ -560,7 +574,19 @@ bool c_os_file_exists(cstr filename) {
     return PathFileExistsA(filename);
 }
 
+c_String_array c_os_list_files(cstr dir) {
+    c_Stc_String_array res = {0};
+    ASSERT(false, "UNIMPLEMENTED!");
+    return res;
+}
+
 #elif defined(__linux__)
+#include <stdio.h>
+#include <stdlib.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <string.h>
+
 void c_os_get_timedate(c_Arena* a) {
         (void)a;
         C_ASSERT(false, "Unimplemented!");
@@ -569,6 +595,40 @@ void c_os_get_timedate(c_Arena* a) {
 bool c_os_file_exists(cstr filename) {
         struct stat buf;
         return stat(filename, &buf) == 0;
+}
+
+c_String_array c_os_list_files(cstr dir) {
+    c_String_array res = {0};
+    struct dirent *entry;
+    struct stat fileStat;
+    DIR *dp = opendir(dir);
+
+    // Check if the directory can be opened
+    if (dp == NULL) {
+        perror("opendir");
+        return res;
+    }
+
+    // Read entries from the directory
+    while ((entry = readdir(dp)) != NULL) {
+        // Get the file status
+        if (stat(entry->d_name, &fileStat) == -1) {
+            perror("stat");
+            continue;
+        }
+        
+        // Check if it is a regular file
+        if (S_ISREG(fileStat.st_mode)) {
+            char *item = strdup(entry->d_name);
+            c_darr_append(res, item);
+            // printf("%s\n", item);
+        }
+    }
+
+    // Close the directory
+    closedir(dp);
+
+    return res;
 }
 #endif
 

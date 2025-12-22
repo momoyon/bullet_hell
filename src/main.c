@@ -87,6 +87,8 @@ void confirm_texpath_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_text
     const char *actual_editing_hitbox_texpath = arena_alloc_str(str_arena, TEXTURE_PATH"%s", tbox->buff);
     if (!load_texture_(&tm, actual_editing_hitbox_texpath, editing_hitbox_texture, true)) {
         log_error("Failed to load texture %s", actual_editing_hitbox_texpath);
+    } else {
+        log_debug("Successfully loaded texture %s", actual_editing_hitbox_texpath);
     }
 }
 
@@ -137,6 +139,12 @@ int main(void) {
 
     load_all_textures();
 
+    Texture2D tex = {0};
+    load_texture(&tm, TEXTURE_PATH"rumia_player.png", &tex);
+    Sprite spr = {0};
+    init_sprite(&spr, tex, 3, 1);
+    center_sprite_origin(&spr);
+
     Texture2D title_screen_tex = {0};
     const char *title_screen_tex_path = "resources/gfx/title_screen.png";
     load_texture(&tm, title_screen_tex_path, &title_screen_tex);
@@ -145,18 +153,17 @@ int main(void) {
         return 1;
     }
 
-    log_debug("Title Screen Texture Size: %dx%d (%fx%f)", title_screen_tex.width, title_screen_tex.height,
-             title_screen_tex.width * SPRITE_SCALE, title_screen_tex.height * SPRITE_SCALE);
-
 	arena      = arena_make(0);
 	temp_arena = arena_make(0);
 	str_arena  = arena_make(4*1024);
 
-    Hitbox player_hitbox = {
-        .pos = {0},
-        .size = {16, 16},
-    };
-	Entity player = make_player(&shots, v2(WIDTH*0.5, HEIGHT*0.5), 0.05f, 400.f, 200.f, "resources/gfx/bullet.png", player_hitbox, RUMIA_SHOT_SPEED, 8.f, RUMIA_SHOT_TEXPATH);
+    Hitbox player_hitbox = {0};
+    if (!load_hitbox_from_file(&player_hitbox, HITBOX_PATH"rumia_player.hitbox")) return 1;
+    Hitbox player_hitbox_bounding = {0};
+    if (!load_hitbox_from_file(&player_hitbox_bounding, HITBOX_PATH"rumia_player_bounding.hitbox")) return 1;
+    player_hitbox.color = YELLOW;
+    player_hitbox_bounding.color = GREEN;
+	Entity player = make_player(&shots, v2(WIDTH*0.5, HEIGHT*0.5), 0.05f, 400.f, 200.f, "resources/gfx/rumia_player.png", 3, 1, player_hitbox, player_hitbox_bounding, RUMIA_SHOT_SPEED, 8.f, RUMIA_SHOT_TEXPATH);
 
 	font = GetFontDefault();
 	if (!IsFontReady(font)) {
@@ -196,7 +203,7 @@ int main(void) {
     }
 
     Texture2D editing_hitbox_texture = {0};
-    float editing_hitbox_scale = SPRITE_SCALE;
+    float editing_hitbox_scale = 1;
 
 	/// @DEBUG
 	float angle = 0;
@@ -225,6 +232,7 @@ int main(void) {
                     em.pos = m;
                     update_bullet_emitter(&em);
                 }
+
             } break;
             case STATE_EDIT_HITBOX: {
                 int active_count = 0;
@@ -258,8 +266,8 @@ int main(void) {
                             case TEXTBOX_FILEPATH: {
                                 confirm_filepath_tbox(&editing_hitbox, &editing_hitbox_texture, editing_textboxes, tbox);
                             } break;
-                                confirm_texpath_tbox(&editing_hitbox, &editing_hitbox_texture, editing_textboxes, tbox);
                             case TEXTBOX_TEXPATH: {
+                                confirm_texpath_tbox(&editing_hitbox, &editing_hitbox_texture, editing_textboxes, tbox);
                             } break;
                             default: ASSERT(false, "UNREACHABLE!");
                         }
@@ -268,6 +276,10 @@ int main(void) {
                     }
                 }
                 if (active_count == 0) {
+                    // Set Scale
+                    if (IsKeyPressed(KEY_ZERO)) {
+                        editing_hitbox_scale = 1;
+                    }
                     // Size
                     if (!IsKeyDown(KEY_LEFT_CONTROL)) {
                         if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_D, KEY_LEFT_ALT)) {
@@ -320,8 +332,8 @@ int main(void) {
 
                     // Center on texture
                     if (IsKeyPressed(KEY_C) && IsTextureReady(editing_hitbox_texture)) {
-                        editing_hitbox.pos.x = (float)editing_hitbox_texture.width/2 - editing_hitbox.size.x*0.5;
-                        editing_hitbox.pos.y = (float)editing_hitbox_texture.height/2 - editing_hitbox.size.y*0.5;;
+                        editing_hitbox.pos.x = -editing_hitbox.size.x*0.5;
+                        editing_hitbox.pos.y = -editing_hitbox.size.y*0.5;;
                     }
                 }
 
@@ -341,7 +353,8 @@ int main(void) {
         switch (current_state) {
             case STATE_NORMAL: {
                 control_entity(&player, player_controls);
-                bind(&player.pos, player.hitbox.size, bounds);
+                bind(&player.pos, player.bounding_hitbox, bounds);
+                update_entity(&player);
                 // Update Bullets
                 for (int i = 0; i < bullets.count; ++i) {
                     Bullet *b = &bullets.items[i];
@@ -378,11 +391,9 @@ int main(void) {
 		// Draw
 		ClearBackground(BLACK);
         /// @DEBUG
-        DrawTextureEx(title_screen_tex, v2(0,0), 0, SPRITE_SCALE, WHITE);
-
+        DrawTextureEx(title_screen_tex, v2(0,0), 0, 1, WHITE);
 
 		draw_entity(&player);
-		DrawCircleV(m, 16.f, GREEN);
 
 		for (int i = 0; i < bullets.count; ++i) {
 			Bullet *b = &bullets.items[i];
@@ -403,7 +414,7 @@ int main(void) {
                 DrawRectangleV(v2xx(0), v2(WIDTH, HEIGHT), ColorAlpha(BLACK, 1));
 
                 if (IsTextureReady(editing_hitbox_texture)) {
-                    DrawTextureEx(editing_hitbox_texture, editing_hitbox_screen_pos, 0, editing_hitbox_scale, WHITE);
+                    draw_texture_centered(editing_hitbox_texture, editing_hitbox_screen_pos, v2xx(editing_hitbox_scale), 0, WHITE);
                 }
 
                 draw_hitbox_offsetted_scaled(&editing_hitbox, editing_hitbox_screen_pos, v2xx(editing_hitbox_scale));
