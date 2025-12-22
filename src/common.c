@@ -31,3 +31,11 @@ void draw_texture_centered(Texture2D tex, Vector2 pos, Vector2 scl, float rot, C
     Vector2 origin = v2(dst.width*0.5f, dst.height*0.5f);
     DrawTexturePro(tex, src, dst, origin, rot, tint);
 }
+
+bool is_key_pressed_repeat(int key) {
+    return IsKeyPressed(key) || IsKeyPressedRepeat(key);
+}
+
+bool is_key_down_ON_key_down_OR_key_pressed_repeat(int key, int on_key) {
+    return IsKeyDown(on_key) ? IsKeyDown(key) : is_key_pressed_repeat(key);
+}

@@ -76,10 +76,10 @@ bool save_hitbox_to_file(Hitbox *hbox, const char *filepath) {
 #define BUFF_SIZE 1024
     char buff[BUFF_SIZE] = {0};
 
-    snprintf(buff, BUFF_SIZE, "%f,%f %f,%f", hbox->pos.x, hbox->pos.y, hbox->size.x, hbox->size.y);
+    int written = snprintf(buff, BUFF_SIZE, "%f,%f %f,%f", hbox->pos.x, hbox->pos.y, hbox->size.x, hbox->size.y);
 
     // NOTE: We just assume this works
-    fwrite((void *)buff, BUFF_SIZE, BUFF_SIZE, f);
+    fwrite((void *)buff, written, 1, f);
 
     return true;
 }
