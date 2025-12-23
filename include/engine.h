@@ -12,6 +12,16 @@
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
+// NOTE: @TEMP #define ENGINE_IMPLEMENTATION
+
+// NOTE: Mouse
+static bool __eng_ignore_mouse_input = false;
+Vector2 get_mpos_scaled(float scl);
+bool mouse_button_pressed(int btn);
+bool mouse_button_down(int btn);
+bool mouse_button_released(int btn);
+void ignore_mouse_input(bool ignore);
+
 // Vector helpers
 Vector2 v2xx(float v);
 Vector2 v2(float x, float y);
@@ -25,7 +35,7 @@ float v2_radians(Vector2 v);
 Vector2 v2_from_radians(float r);
 Vector2 v2_from_degrees(float d);
 
-// Vector2i
+// NOTE: Vector2i
 typedef struct {
 	int x, y;
 } Vector2i;
@@ -33,7 +43,7 @@ typedef struct {
 Vector2i v2vi(Vector2 v);
 bool v2i_equal(Vector2i a, Vector2i b);
 
-// Sprite
+// NOTE: Sprite
 typedef struct Sprite Sprite;
 
 #define SPRITE_DEFAULT_TIME_PER_FRAME 0.1f // seconds
@@ -64,7 +74,141 @@ void animate_sprite_hframes(Sprite* spr, float delta);
 void free_sprite(Sprite* spr);
 void set_sprite_scale_scalar(Sprite *spr, float scl);
 
-// TextBox
+// NOTE: Timer and Alarm
+typedef struct Timer Timer;
+typedef struct Alarm Alarm;
+
+struct Timer {
+		float time;
+};
+
+void update_timer(Timer *t, float dt);
+
+struct Alarm {
+		Timer timer;
+		float alarm_time;
+		bool once;
+		bool done;
+};
+
+bool on_alarm(Alarm *a, float dt);
+
+// NOTE: UI
+typedef struct UI UI;
+typedef struct UI_Theme UI_Theme;
+typedef struct UI_Layout UI_Layout;
+typedef struct UI_Draw_element UI_Draw_element;
+
+typedef enum {
+	UI_LAYOUT_KIND_HORZ,
+	UI_LAYOUT_KIND_VERT,
+	UI_LAYOUT_KIND_COUNT
+} UI_Layout_kind;
+
+struct UI_Layout {
+	UI_Layout_kind kind;
+	Vector2 pos;
+	Vector2 size;
+	Vector2 padding;
+};
+
+typedef enum {
+	UI_DRAW_ELEMENT_TYPE_RECT,
+	UI_DRAW_ELEMENT_TYPE_BOX,
+	UI_DRAW_ELEMENT_TYPE_SPRITE,
+	UI_DRAW_ELEMENT_TYPE_SPRITE_FRAME,
+	UI_DRAW_ELEMENT_TYPE_TEXT,
+	UI_DRAW_ELEMENT_TYPE_COUNT,
+} UI_Draw_element_type;
+
+struct UI_Draw_element {
+	UI_Draw_element_type type;
+	Vector2 pos;
+	Vector2 size;
+	Color fill_color;
+	Color out_color;
+	Sprite* spr;
+	int hframe, vframe;
+	Font* font;
+	cstr text;
+	int font_size;
+};
+
+typedef struct {
+	Arena arena;
+	UI_Draw_element* buff;
+	size_t count;
+} UI_Draw_element_stack;
+
+UI_Draw_element_stack UI_Draw_element_stack_make(void);
+void UI_Draw_element_stack_push(UI_Draw_element_stack* stack, UI_Draw_element val);
+bool UI_Draw_element_stack_pop(UI_Draw_element_stack* stack, UI_Draw_element* popped);
+void UI_Draw_element_stack_free(UI_Draw_element_stack* stack);
+
+Vector2 UI_Layout_available_pos(UI_Layout* this);
+void UI_Layout_push_widget(UI_Layout* this, Vector2 size);
+
+struct UI_Theme {
+	Color bg_color;
+	Color titlebar_color;
+	int titlebar_padding;
+	float titlebar_height;
+	int titlebar_font_size;
+	Vector2 bg_padding;
+    float titlebar_pad_bottom;
+};
+
+UI_Theme get_default_ui_theme(void);
+void set_ui_theme_titlebar_font_size(UI_Theme* theme, int font_size);
+
+struct UI {
+	int active_id;
+	int last_used_id;
+#define LAYOUTS_CAP 256
+	UI_Layout layouts[LAYOUTS_CAP];
+	size_t layouts_count;
+	Vector2 btn_padding;
+	int text_input_width; // in characters, so depends on the font_size
+	Font* font;
+	Rectangle bg_rect;
+    Rectangle ui_rect; // @NOTE Rect covering the ui components (without bg_padding, etc)
+	Vector2 pos;
+	Vector2 pos_offset;
+	bool is_moving;
+	Alarm text_input_cursor_blink_alarm;
+	bool show_text_input_cursor;
+	UI_Draw_element_stack draw_element_stack;
+	cstr title;
+	bool show;
+    UI_Theme theme;
+    Vector2* mpos_ptr;
+    Vector2 scroll_offset;
+};
+
+UI UI_make(UI_Theme theme, Font* font, Vector2 pos, cstr title, Vector2* mpos_ptr);
+void UI_push_layout(UI* this, UI_Layout layout);
+UI_Layout UI_pop_layout(UI* this);
+UI_Layout* UI_top_layout(UI* this);
+void UI_begin_layout(UI* this, UI_Layout_kind kind);
+void UI_end_layout(UI* this);
+void UI_free(UI* this);
+
+void UI_begin(UI* this, UI_Layout_kind kind);
+bool UI_button(UI* this, cstr text, int font_size, Color color);
+void UI_text(UI* this, cstr text, int font_size, Color color);
+void UI_spacing(UI* this, float spacing);
+void UI_sprite(UI* this, Sprite* spr);
+bool UI_sprite_button(UI* this, Sprite* spr);
+bool UI_sprite_button_frame(UI* this, Sprite* spr, int hframe, int vframe);
+void UI_text_input(UI* this, char* text_buff, uint32 text_buff_size, uint32* cursor, int font_size, Color color);
+void UI_background(UI* this);
+// @NOTE: We are defering drawing because we need to call UI funcs before any input handling for the frame is happened,
+// if we want input ignoring. We just push draw info to a stack when the UI funcs are called and draw all of them at once on UI_draw().
+void UI_draw(UI* this);
+// @NOTE: Must be in called input handling for the frame. ***
+void UI_end(UI* this);
+
+// NOTE: TextBox
 typedef struct Textbox Textbox;
 
 struct Textbox {
@@ -93,7 +237,7 @@ bool input_to_textbox(Textbox *tbox);
 void set_textbox_keys(Textbox *tbox, int activate, int deactivate);
 void draw_textbox(Textbox *tbox);
 
-// Rectangle
+// NOTE: Rectangle
 bool rect_contains_point(Rectangle r1, Vector2 p);
 bool rect_contains_rect(Rectangle r1, Rectangle r2);
 bool rect_intersects_rect(Rectangle r1, Rectangle r2);
@@ -101,7 +245,7 @@ bool rect_intersects_rect(Rectangle r1, Rectangle r2);
 // void rect_get_3d_points(Rectangle rect, Vector3f* p0, Vector3f* p1, Vector3f* p2, Vector3f* p3);
 // void rect_get_points(Rectangle rect, Vector2* p0, Vector2* p1, Vector2* p2, Vector2* p3);
 
-// Window
+// NOTE: Window
 RenderTexture2D init_window(int screen_width, int screen_height, float scl, const char *title, int *width_out, int *height_out);
 void close_window(RenderTexture2D ren_tex);
 
@@ -120,20 +264,18 @@ typedef enum {
 	TEXT_ALIGN_V_COUNT,
 } Text_align_v;
 
-// Draw
+// NOTE: Draw
 void draw_ren_tex(RenderTexture2D ren_tex, int screen_width, int screen_height);
 void draw_text_aligned(Font font, const char *text, Vector2 pos, int font_size, const Text_align_v align_v, const Text_align_h align_h, Color color);
 void draw_text_aligned_ex(Font font, const char *text, Vector2 pos, int font_size, const Text_align_v align_v, const Text_align_h align_h, float rotation, Color color);
 void draw_text(Font font, const char *text, Vector2 pos, int font_size, Color color);
 
-// Misc
-Vector2 get_mpos_scaled(float scl);
 
-// Input
+// NOTE: Input
 bool input_to_buff(char *buff, size_t buff_cap, int *cursor);
 bool input_to_buff_ignored(char *buff, size_t buff_cap, int *cursor, char ignore, bool *ignoring);
 
-// Assets Manager
+// NOTE: Assets Manager
 typedef struct {
 	char *key;
 	Texture2D value;
@@ -146,7 +288,7 @@ typedef struct {
 bool load_texture(Texture_manager *tm, const char *filepath, Texture2D *tex_out);
 bool load_texture_(Texture_manager *tm, const char *filepath, Texture2D *tex_out, bool verbose);
 
-// Console
+// NOTE: Console
 #define CONSOLE_LINE_BUFF_CAP (1024*1)
 
 typedef struct Console Console;
@@ -212,6 +354,7 @@ float get_cursor_offset(Console *console, int font_size);
 void draw_console(Console *console, Rectangle rect, Vector2 pad, int font_size, Color fill_color, Color border_color, float alpha);
 void console_prompt(Console *console, const char *prompt, String_array *expected_prompt_values);
 
+// NOTE: Macros
 #define log_info_console(console, fmt, ...) do {\
 				Console_line l = {\
 						.color = WHITE,\
@@ -248,29 +391,36 @@ void console_prompt(Console *console, const char *prompt, String_array *expected
 #define log_debug_console(...)
 #endif
 
-// Timer and Alarm
-typedef struct Timer Timer;
-typedef struct Alarm Alarm;
-
-struct Timer {
-		float time;
-};
-
-void update_timer(Timer *t, float dt);
-
-struct Alarm {
-		Timer timer;
-		float alarm_time;
-		bool once;
-		bool done;
-};
-
-bool on_alarm(Alarm *a, float dt);
-
 #endif // _ENGINE_H_
 
 // IMPLEMENTATION ////////////////////////////////
 #ifdef ENGINE_IMPLEMENTATION
+// NOTE: Mouse
+Vector2 get_mpos_scaled(float scl) {
+	Vector2 m = GetMousePosition();
+	m.x *= scl;
+	m.y *= scl;
+	return m;
+}
+
+bool mouse_button_pressed(int btn) {
+    if (__eng_ignore_mouse_input) return false;
+    return IsMouseButtonPressed(btn);
+}
+
+bool mouse_button_down(int btn) {
+    if (__eng_ignore_mouse_input) return false;
+    return IsMouseButtonDown(btn);
+}
+
+bool mouse_button_released(int btn) {
+    if (__eng_ignore_mouse_input) return false;
+    return IsMouseButtonReleased(btn);
+}
+
+void ignore_mouse_input(bool ignore) {
+    __eng_ignore_mouse_input = ignore;
+}
 
 // Vector helpers
 Vector2 v2xx(float v) { return CLITERAL(Vector2) { v, v }; }
@@ -298,6 +448,828 @@ Vector2i v2vi(Vector2 v) { return CLITERAL(Vector2i) { (int)v.x, (int)v.y }; }
 
 bool v2i_equal(Vector2i a, Vector2i b) {
 	return a.x == b.x && a.y == b.y;
+}
+
+// @TODO: make an UI array struct and do begin/end and draws on them, make the active UI item the last in the array
+// so that way the active UI item has the input.
+
+extern bool should_ignore_mouse_input;
+
+static Vector2 get_ui_bg_rect_pos(UI* this) {
+    return (Vector2) {
+        .x = this->pos.x - this->theme.bg_padding.x,
+        .y = this->pos.y + (this->theme.titlebar_height * (1.f+this->theme.titlebar_pad_bottom)) - this->theme.bg_padding.y,
+    };
+}
+
+Vector2 UI_Layout_available_pos(UI_Layout* this) {
+	switch (this->kind) {
+	case UI_LAYOUT_KIND_HORZ: {
+		return (Vector2) {
+			.x = this->pos.x + this->size.x + this->padding.x,
+			.y = this->pos.y,
+		};
+	} break;
+	case UI_LAYOUT_KIND_VERT: {
+		return (Vector2) {
+			.x = this->pos.x,
+			.y = this->pos.y + this->size.y + this->padding.y,
+		};
+	} break;
+	case UI_LAYOUT_KIND_COUNT:
+	default: ASSERT(0, "Unreachable");
+	}
+	ASSERT(0, "Unreachable");
+
+	return (Vector2) {0.f, 0.f};
+}
+
+void UI_Layout_push_widget(UI_Layout* this, Vector2 size) {
+	switch (this->kind) {
+	case UI_LAYOUT_KIND_HORZ: {
+		this->size.x += size.x + this->padding.x;
+		this->size.y = fmaxf(this->size.y, size.y);
+	} break;
+	case UI_LAYOUT_KIND_VERT: {
+		this->size.x = fmaxf(this->size.x, size.x);
+		this->size.y += size.y + this->padding.y;
+	} break;
+	case UI_LAYOUT_KIND_COUNT:
+	default: ASSERT(0, "Unreachable");
+	}
+}
+
+static void push_ui_widget(UI* this, UI_Layout* layout, Vector2 size) {
+	switch (layout->kind) {
+	case UI_LAYOUT_KIND_HORZ: {
+		this->ui_rect.width += size.x;
+		this->ui_rect.height = fmaxf(this->ui_rect.height, size.y);
+	} break;
+	case UI_LAYOUT_KIND_VERT: {
+		this->ui_rect.width = fmaxf(this->ui_rect.width, size.x);
+		this->ui_rect.height += size.y;
+	} break;
+	case UI_LAYOUT_KIND_COUNT:
+	default: ASSERT(0, "Unreachable");
+	}
+    UI_Layout_push_widget(layout, size);
+}
+
+UI_Theme get_default_ui_theme(void) {
+    UI_Theme res = {0};
+    res.bg_color = GetColor(0x585B70FF),
+    res.titlebar_color = GetColor(0x45475AFF),
+	res.bg_padding = (Vector2) {10.f, 10.f};
+    res.titlebar_pad_bottom = 0.5f;
+
+    res.titlebar_padding = 4.f;
+    set_ui_theme_titlebar_font_size(&res, 12);
+    return res;
+}
+
+void set_ui_theme_titlebar_font_size(UI_Theme* theme, int font_size) {
+    theme->titlebar_font_size = font_size;
+	theme->titlebar_height = (float)(theme->titlebar_font_size + (theme->titlebar_padding*2.f));
+}
+
+UI UI_make(UI_Theme theme, Font* font, Vector2 pos, cstr title, Vector2* mpos_ptr) {
+	UI res;
+	res.active_id = -1;
+	res.layouts_count = 0;
+	res.pos = pos;
+	res.font = font;
+	res.btn_padding = (Vector2) {4.f, 4.f};
+	res.text_input_width = 12;
+	res.text_input_cursor_blink_alarm.alarm_time = 0.5f;
+	res.show_text_input_cursor = true;
+	res.draw_element_stack = UI_Draw_element_stack_make();
+	res.title = title;
+    res.show = true;
+    res.theme = theme;
+    res.mpos_ptr = mpos_ptr;
+	return res;
+}
+
+void UI_push_layout(UI* this, UI_Layout layout) {
+	ASSERT(this->layouts_count < LAYOUTS_CAP, "Layouts exceeded");
+	this->layouts[this->layouts_count++] = layout;
+}
+
+UI_Layout UI_pop_layout(UI* this) {
+	ASSERT(this->layouts_count > 0, "Layouts exceeded");
+	return this->layouts[--this->layouts_count];
+}
+
+UI_Layout* UI_top_layout(UI* this) {
+	if (this->layouts_count > 0)
+		return &this->layouts[this->layouts_count - 1];
+	return NULL;
+}
+
+void UI_begin_layout(UI* this, UI_Layout_kind kind) {
+	UI_Layout* prev = UI_top_layout(this);
+	if (prev == NULL) {
+		log_error("This function must be used between 'begin' and 'end'!");
+		return;
+	}
+
+	UI_Layout next = {0};
+	next.kind = kind;
+	next.pos = UI_Layout_available_pos(prev);
+	next.size = (Vector2) {0.f, 0.f};
+	UI_push_layout(this, next);
+}
+
+void UI_end_layout(UI* this) {
+	UI_Layout child = UI_pop_layout(this);
+	UI_Layout* parent = UI_top_layout(this);
+	if (parent == NULL) {
+		log_error("This function must be used between 'begin' and 'end'!");
+		return;
+	}
+    push_ui_widget(this, parent, child.size);
+	/* UI_Layout_push_widget(parent, child.size); */
+}
+
+UI_Draw_element_stack UI_Draw_element_stack_make(void) {
+	UI_Draw_element_stack res = {0};
+
+	const size_t draw_element_count = 100;
+	res.arena = arena_make(sizeof(UI_Draw_element)*(draw_element_count+1));
+	res.buff = (UI_Draw_element*)arena_alloc(&res.arena, sizeof(UI_Draw_element)*draw_element_count);
+
+	return res;
+}
+
+void UI_Draw_element_stack_push(UI_Draw_element_stack* stack, UI_Draw_element val) {
+	stack->buff[stack->count++] = val;
+}
+
+bool UI_Draw_element_stack_pop(UI_Draw_element_stack* stack, UI_Draw_element* popped) {
+	if (stack->count == 0) {
+		return false;
+	} else {
+		*popped = stack->buff[--stack->count];
+	}
+	return true;
+}
+
+void UI_Draw_element_stack_free(UI_Draw_element_stack* stack) {
+	arena_free(&stack->arena);
+}
+
+void UI_begin(UI* this, UI_Layout_kind kind) {
+	UI_Layout layout = {0};
+	layout.pos = Vector2Add(this->pos, (Vector2) {0.f, this->theme.titlebar_height*(1+this->theme.titlebar_pad_bottom)});
+    layout.pos = Vector2Add(layout.pos, this->scroll_offset);
+	layout.kind = kind;
+	UI_push_layout(this, layout);
+
+    this->ui_rect.width = 0.f;
+    this->ui_rect.height = 0.f;
+}
+
+bool UI_button(UI* this, cstr text, int font_size, Color color) {
+	int id = this->last_used_id++;
+	UI_Layout* top = UI_top_layout(this);
+	if (top == NULL) {
+		log_error("This function must be used between 'begin' and 'end'!");
+		return false;
+	}
+
+	const Vector2 pos = UI_Layout_available_pos(top);
+	const Vector2 size = Vector2Add(MeasureTextEx(*this->font, text, font_size, 1.f), Vector2Scale(this->btn_padding, 2.f));
+	const Rectangle rect = {
+			.x = pos.x,
+			.y = pos.y,
+			.width = size.x,
+			.height = size.y,
+	};
+	bool click = false;
+	Vector2 mpos = *this->mpos_ptr;
+	bool hovering = CheckCollisionPointRec(mpos, rect);
+	if (this->active_id == id) {
+		if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+			this->active_id = -1;
+			if (hovering) {
+                click = true;
+			}
+		}
+	} else {
+		if (hovering && mouse_button_pressed(MOUSE_BUTTON_LEFT)) {
+			this->active_id = id;
+		}
+	}
+
+	float alpha = 0.4f;
+	if (hovering) {
+		alpha = 0.5f;
+	}
+
+	bool is_clicked = (hovering && mouse_button_down(MOUSE_BUTTON_LEFT));
+	if (is_clicked) {
+		alpha = 1.f;
+	}
+
+	UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) {
+			.type = UI_DRAW_ELEMENT_TYPE_BOX,
+			.pos =	(Vector2) { rect.x, rect.y },
+			.size = (Vector2) { rect.width, rect.height },
+			.fill_color = ColorAlpha(color, 0.f),
+			.out_color = WHITE,
+		});
+
+	Vector2 draw_pos = Vector2Add(pos, this->btn_padding);
+	if (is_clicked) {
+		draw_pos = Vector2AddValue(draw_pos, 1);
+	}
+
+	UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) {
+			.type = UI_DRAW_ELEMENT_TYPE_TEXT,
+			.pos = draw_pos,
+			.fill_color = WHITE,
+			.out_color = WHITE,
+			.spr = NULL,
+			.font = this->font,
+			.text = text,
+			.font_size = font_size,
+		});
+
+	UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) {
+			.type = UI_DRAW_ELEMENT_TYPE_RECT,
+			.pos =	(Vector2) { rect.x, rect.y },
+			.size = (Vector2) { rect.width, rect.height },
+			.fill_color = ColorAlpha(color, alpha),
+		});
+    push_ui_widget(this, top, size);
+	/* UI_Layout_push_widget(top, size); */
+
+    if (!this->show) click = false;
+    if (click) ignore_mouse_input(true);
+
+	return click;
+}
+
+void UI_text(UI* this, cstr text, int font_size, Color color) {
+	int id = this->last_used_id++;
+	(void)id;
+	UI_Layout* top = UI_top_layout(this);
+	if (top == NULL) {
+		log_error("This function must be used between 'begin' and 'end'!");
+		return;
+	}
+
+	const Vector2 pos = UI_Layout_available_pos(top);
+	const Vector2 size = Vector2Add(MeasureTextEx(*this->font, text, font_size, 1.f), Vector2Scale(this->btn_padding, 2.f));
+	/* draw_text(ctx, this->font, text, pos, font_size, color); */
+	UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) {
+			.type = UI_DRAW_ELEMENT_TYPE_TEXT,
+			.pos = pos,
+			.fill_color = color,
+			.out_color = color,
+			.spr = NULL,
+			.font = this->font,
+			.text = text,
+			.font_size = font_size,
+		});
+
+    push_ui_widget(this, top, size);
+    /* UI_Layout_push_widget(top, size); */
+}
+
+void UI_sprite(UI* this, Sprite* spr) {
+	int id = this->last_used_id++;
+	(void)id;
+	UI_Layout* top = UI_top_layout(this);
+	if (top == NULL) {
+		log_error("This function must be used between 'begin' and 'end'!");
+		return;
+	}
+
+	const Vector2 pos = UI_Layout_available_pos(top);
+	const Vector2 size = (Vector2) { spr->tex_rect.width*spr->scale.x, spr->tex_rect.height*spr->scale.y };
+	/* draw_sprite_at(ctx, spr, pos); */
+	UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) {
+			.type = UI_DRAW_ELEMENT_TYPE_SPRITE,
+			.pos = pos,
+			.fill_color = WHITE,
+			.out_color = WHITE,
+			.spr = spr,
+			.font = NULL,
+			.text = NULL,
+			.font_size = 0,
+		});
+
+    push_ui_widget(this, top, size);
+	/* UI_Layout_push_widget(top, size); */
+}
+
+bool UI_sprite_button(UI* this, Sprite* spr) {
+	int id = this->last_used_id++;
+	UI_Layout* top = UI_top_layout(this);
+	if (top == NULL) {
+		log_error("This function must be used between 'begin' and 'end'!");
+		return false;
+	}
+
+	const Vector2 pos = UI_Layout_available_pos(top);
+	const Vector2 size = (Vector2) { spr->tex_rect.width, spr->tex_rect.height };
+	const Rectangle rect = {
+			.x = pos.x,
+			.y = pos.y,
+			.width = size.x,
+			.height = size.y,
+	};
+	bool click = false;
+	Vector2 mpos = *this->mpos_ptr;
+	bool hovering = CheckCollisionPointRec(mpos, rect);
+	if (this->active_id == id) {
+		if (mouse_button_released(MOUSE_BUTTON_LEFT)) {
+			this->active_id = -1;
+			if (hovering) {
+	click = true;
+			}
+		}
+	} else {
+		if (hovering && mouse_button_pressed(MOUSE_BUTTON_LEFT)) {
+			this->active_id = id;
+		}
+	}
+
+	float alpha = 0.4f;
+	if (hovering) {
+		alpha = 0.5f;
+	}
+
+	bool is_clicked = (hovering && mouse_button_down(MOUSE_BUTTON_LEFT));
+	if (is_clicked) {
+		alpha = 1.f;
+	}
+
+	Color color = spr->tint;
+	color.a = alpha;
+	UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) {
+			.type = UI_DRAW_ELEMENT_TYPE_SPRITE,
+			.pos = pos,
+			.fill_color = color,
+			.out_color = color,
+			.spr = spr,
+			.font = NULL,
+			.text = NULL,
+			.font_size = 0,
+		});
+
+
+    push_ui_widget(this, top, size);
+	/* UI_Layout_push_widget(top, size); */
+
+	// @Cleanup: why are we ignoring mouse input unconditionally here????
+	/* ignore_mouse_input(true); */
+
+    if (!this->show) click = false;
+    if (click) ignore_mouse_input(true);
+	return click;
+}
+
+bool UI_sprite_button_frame(UI* this, Sprite* spr, int hframe, int vframe) {
+	int id = this->last_used_id++;
+	UI_Layout* top = UI_top_layout(this);
+	if (top == NULL) {
+		log_error("This function must be used between 'begin' and 'end'!");
+		return false;
+	}
+
+	const Vector2 pos = UI_Layout_available_pos(top);
+	const Vector2 size = (Vector2) { spr->tex_rect.width, spr->tex_rect.height };
+	const Rectangle rect = {
+			.x = pos.x,
+			.y = pos.y,
+			.width = size.x,
+			.height = size.y,
+	};
+	bool click = false;
+	Vector2 mpos = *this->mpos_ptr;
+	bool hovering = CheckCollisionPointRec(mpos, rect);
+	if (this->active_id == id) {
+		if (mouse_button_released(MOUSE_BUTTON_LEFT)) {
+			this->active_id = -1;
+			if (hovering) {
+	click = true;
+			}
+		}
+	} else {
+		if (hovering && mouse_button_pressed(MOUSE_BUTTON_LEFT)) {
+			this->active_id = id;
+		}
+	}
+
+	float alpha = 0.4f;
+	if (hovering) {
+		alpha = 0.5f;
+	}
+
+	bool is_clicked = (hovering && mouse_button_down(MOUSE_BUTTON_LEFT));
+	if (is_clicked) {
+		alpha = 1.f;
+	}
+
+	Color color = spr->tint;
+	color.a = alpha;
+	/* draw_sprite_at(ctx, spr, pos); */
+	UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) {
+			.type = UI_DRAW_ELEMENT_TYPE_SPRITE_FRAME,
+			.pos = pos,
+			.fill_color = color,
+			.out_color = color,
+			.spr = spr,
+			.hframe = hframe,
+			.vframe = vframe,
+			.font = NULL,
+			.text = NULL,
+			.font_size = 0,
+		});
+
+    push_ui_widget(this, top, size);
+	/* UI_Layout_push_widget(top, size); */
+
+	// @Cleanup: why are we ignoring mouse input unconditionally here????
+	/* ignore_mouse_input(true); */
+
+    if (!this->show) click = false;
+    if (click) ignore_mouse_input(true);
+	return click;
+}
+
+void UI_spacing(UI* this, float spacing) {
+	int id = this->last_used_id++;
+	(void)id;
+	UI_Layout* top = UI_top_layout(this);
+	if (top == NULL) {
+		log_error("This function must be used between 'begin' and 'end'!");
+		return;
+	}
+
+	Vector2 size = {
+		.x = spacing,
+		.y = 0.f,
+	};
+
+	if (top->kind == UI_LAYOUT_KIND_VERT) {
+		size.x = 0.f;
+		size.y = spacing;
+	}
+
+    push_ui_widget(this, top, size);
+	/* UI_Layout_push_widget(top, size); */
+}
+
+/* void UI_text_input(UI* this, char* text_buff, uint32 text_buff_size, uint32* cursor_ptr, int font_size, Color color) { */
+/*	 uint32 cursor = (*cursor_ptr); */
+/*	 int id = this->last_used_id++; */
+/*	 UI_Layout* top = UI_top_layout(this); */
+/*	 if (top == NULL) { */
+/*		 log_error("This function must be used between 'begin' and 'end'!"); */
+/*		 return; */
+/*	 } */
+
+/*	 const Vector2 pos = UI_Layout_available_pos(top); */
+/*	 // TODO: maybe have text input padding? */
+/*	 const Vector2 size = Vector2Add((Vector2) {this->text_input_width * (float32)font_size, (float32)font_size}, Vector2Scale(this->btn_padding, 2.f)); */
+/*	 const Rectangle rect = { */
+/*			 .x = pos.x, */
+/*			 .y = pos.y, */
+/*			 .width = size.x, */
+/*			 .height = size.y, */
+/*	 }; */
+/*   Vector2 mpos = *this->mpos_ptr; */
+/*	 bool hovering = CheckCollisionPointRec(mpos, rect); */
+/*	 if (this->active_id == id) { */
+/*		 bool pressed = false; */
+
+/*		 // Backspace */
+/*		 if (clock_key_pressed(ctx, KEY_BACKSPACE) && cursor > 0) { */
+/*			 uint32 n = text_buff_size - cursor; */
+/*			 if (n == 0) { */
+/* 	text_buff[--cursor] = '\0'; */
+/*			 } else { */
+/* 	memcpy((uint8*)text_buff+(cursor-1), (uint8*)text_buff+cursor, n); */
+/* 	cursor--; */
+/* 	// Edge case: text buffer is full, cursor is not at the end of text buffer */
+/* 	if (text_buff[text_buff_size-1] != '\0') { */
+/* 		memset((uint8*)text_buff+cursor+n, 0, text_buff_size - (cursor + n)); */
+/* 	} */
+/*			 } */
+/*			 pressed = true; */
+/*		 } */
+
+/*		 // Delete */
+/*		 if (clock_key_pressed(ctx, KEY_DELETE) && */
+/* 	cursor < (uint32)strlen(text_buff)) { */
+/*			 uint32 n = text_buff_size - cursor; */
+
+/*			 if (n == 0) { */
+/* 	text_buff[cursor--] = '\0'; */
+/*			 } else { */
+/* 	memcpy((uint8*)text_buff+(cursor), (uint8*)text_buff+(cursor+1), n-1); */
+/* 	// TODO: Check for edge-case */
+/*			 } */
+/*			 pressed = true; */
+/*		 } */
+
+/*		 // enter */
+/*		 if (clock_key_pressed(ctx, KEY_ENTER)) { */
+/*			 if (clock_key_held(ctx, KEY_LEFT_CONTROL)) { */
+/* 	this->active_id = -1; */
+/*			 } else { */
+/* 	/\* 	text_buff[cursor] = '\n'; *\/ */
+/* 	/\* 	cursor++; *\/ */
+/*			 } */
+/*			 pressed = true; */
+/*		 } */
+
+/*		 if (ctx->text_entered) { */
+/*			 text_buff[cursor] = (char)ctx->last_entered_character; */
+/*			 cursor++; */
+/*			 pressed = true; */
+/*		 } */
+
+/*		 // Pasting */
+/*		 if (clock_key_held(ctx, KEY_LEFT_CONTROL)) { */
+/*			 if (clock_key_pressed(ctx, KEY_V)) { */
+/* 	cstr pasted_text = get_clipboard(); */
+/* 	size_t pasted_text_len = strlen(pasted_text); */
+/* 	ASSERT((pasted_text_len + cursor) <= text_buff_size); */
+/* 	memcpy((uint8*)text_buff+cursor, pasted_text, pasted_text_len); */
+/* 	cursor += (uint32)pasted_text_len; */
+/*			 } */
+/*			 pressed = true; */
+/*		 } */
+
+/*		 // Home/End */
+/*		 if (clock_key_pressed(ctx, KEY_HOME)) { */
+/*			 cursor = 0; */
+/*			 pressed = true; */
+/*		 } else if (clock_key_pressed(ctx, KEY_END)) { */
+/*			 cursor = (uint32)strlen(text_buff); */
+/*			 pressed = true; */
+/*		 } */
+
+/*		 // Cursor movement */
+/*		 if (clock_key_pressed(ctx, KEY_LEFT)) { */
+/*			 if (cursor > 0) cursor--; */
+/*			 pressed = true; */
+/*		 } */
+
+/*		 if (clock_key_pressed(ctx, KEY_RIGHT)) { */
+/*			 size_t text_len = strlen(text_buff); */
+/*			 if (cursor < text_len) cursor++; */
+/*			 pressed = true; */
+/*		 } */
+
+/*		 clock_eat_key_input(ctx); */
+
+/*		 if (!hovering && clock_mouse_released(ctx, MOUSE_BUTTON_LEFT)) { */
+/*			 this->active_id = -1; */
+/*		 } */
+
+/*		 if (!pressed) { */
+/*			 if (Alarm_on_alarm(&this->text_input_cursor_blink_alarm, ctx->delta)) { */
+/* 	this->show_text_input_cursor = !this->show_text_input_cursor; */
+/*			 } */
+/*		 } else { */
+/*			 this->text_input_cursor_blink_alarm.time = 0.f; */
+/*			 this->show_text_input_cursor = true; */
+/*		 } */
+
+/*	 } else { */
+/*		 this->show_text_input_cursor = true; */
+/*		 if (hovering && mouse_button_pressed(ctx, MOUSE_BUTTON_LEFT)) { */
+/*			 this->active_id = id; */
+/*			 clock_eat_mouse_input(ctx); */
+/*		 } */
+/*	 } */
+
+/*	 Color fill_col = color_alpha(WHITE, this->active_id == id ? 0.2f : 0.f); */
+/*	 Vector2 text_box_pos = pos; */
+/*	 /\* draw_box(ctx, rect, WHITE, fill_col); *\/ */
+/*	 UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) { */
+/*			 .type = UI_DRAW_ELEMENT_TYPE_BOX, */
+/*			 .pos = rect.pos, */
+/*			 .size = rect.size, */
+/*			 .fill_color = fill_col, */
+/*			 .out_color = WHITE, */
+/*			 .spr = NULL, */
+/*			 .font = NULL, */
+/*			 .text = NULL, */
+/*			 .font_size = 0, */
+/*		 }); */
+
+/*	 // TODO: look previous todo... */
+/*	 Vector2 text_pos = Vector2Add(pos, this->btn_padding); */
+/*	 float text_width = get_text_size(this->ctx, this->font, text_buff, font_size).x; */
+/*	 float text_box_width = ((float32)this->text_input_width * (float32)font_size); */
+/*	 if (text_width > text_box_width) { */
+/*		 text_pos.x -= text_width - text_box_width; */
+/*	 } */
+
+/*	 // offset by cursor */
+/*	 ASSERT(cursor <= text_buff_size); */
+/*	 float text_width_until_cursor = get_text_sizen(this->ctx, this->font, text_buff, cursor, font_size).x; */
+/*	 Rect cursor_rect = { */
+/*		 .pos = (Vector2) {text_pos.x + text_width_until_cursor, text_pos.y}, */
+/*		 .size = (Vector2) {font_size*0.2f, (float32)font_size} */
+/*	 }; */
+
+/*	 if (cursor_rect.pos.x < text_box_pos.x) { */
+/*		 text_pos.x += text_box_pos.x - cursor_rect.pos.x; */
+/*		 cursor_rect.pos.x = text_box_pos.x; */
+/*	 } */
+
+/*	 clock_begin_scissor(ctx, rect); */
+/*	 color.a = 0.5f; */
+/*	 if (this->active_id == id) { */
+/*		 color.a = 1.f; */
+/*	 } */
+
+/*	 /\* draw_text(ctx, this->font, text_buff, text_pos, font_size, color); *\/ */
+/*	 UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) { */
+/*			 .type = UI_DRAW_ELEMENT_TYPE_TEXT, */
+/*			 .pos = text_pos, */
+/*			 .fill_color = color, */
+/*			 .out_color = color, */
+/*			 .spr = NULL, */
+/*			 .font = this->font, */
+/*			 .text = text_buff, */
+/*			 .font_size = font_size, */
+/*		 }); */
+
+/*	 clock_end_scissor(ctx); */
+
+/*	 // cursor */
+
+/*	 if (this->show_text_input_cursor) { */
+/*		 /\* draw_rect(ctx, cursor_rect, color_alpha(WHITE, (this->active_id == id ? 0.85f : 0.45f))); *\/ */
+/*		 UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) { */
+/*			 .type = UI_DRAW_ELEMENT_TYPE_RECT, */
+/*			 .pos = cursor_rect.pos, */
+/*			 .size = cursor_rect.size, */
+/*			 .fill_color = color_alpha(WHITE, (this->active_id == id ? 0.85f : 0.45f)), */
+/*		 }); */
+/*	 } */
+
+/*	 UI_Layout_push_widget(top, size); */
+/*	 *cursor_ptr = cursor; */
+/* } */
+static void UI_titlebar(UI* this) {
+	Vector2 rect_pos = Vector2Subtract(this->pos, (Vector2) {this->theme.bg_padding.x, 0.f});
+	Vector2 rect_size = (Vector2) {this->bg_rect.width, this->theme.titlebar_height};
+	Rectangle titlebar = {
+			.x = rect_pos.x,
+			.y = rect_pos.y,
+			.width = rect_size.x,
+			.height = rect_size.y,
+	};
+
+	DrawRectangleRec(titlebar, this->theme.titlebar_color);
+	/* DrawRectangleLinesEx(titlebar, 1.f, WHITE); */
+
+	Vector2 title_pos = {titlebar.x + this->theme.titlebar_padding, titlebar.y + this->theme.titlebar_padding};
+    /* Vector2 ui_size = get_ui_size(this); */
+	DrawTextEx(*this->font, TextFormat("%s", this->title), title_pos, this->theme.titlebar_font_size, 1.f, WHITE);
+	/* DrawTextEx(*this->font, TextFormat("%s %d, %d | %d, %d", this->title, (int)this->scroll_offset.x, (int)this->scroll_offset.y, (int)ui_size.x, (int)ui_size.y), title_pos, this->theme.titlebar_font_size, 1.f, WHITE); */
+}
+
+void UI_background(UI* this) {
+	DrawRectangleRec(this->bg_rect, this->theme.bg_color);
+	/* DrawRectangleLinesEx(this->bg_rect, 1.f, WHITE); */
+    /* DrawRectangleLinesEx(this->ui_rect, 1.f, BLUE); */
+}
+
+void UI_draw(UI* this) {
+    UI_titlebar(this);
+    if (!this->show) {
+        // @NOTE: Clean up draw element stack
+        this->draw_element_stack.count = 0;
+        return;
+    }
+	UI_background(this);
+
+    BeginScissorMode(this->bg_rect.x, this->bg_rect.y, this->bg_rect.width, this->bg_rect.height);
+	UI_Draw_element elm = {0};
+	while (UI_Draw_element_stack_pop(&this->draw_element_stack, &elm)) {
+		switch (elm.type) {
+		case UI_DRAW_ELEMENT_TYPE_RECT: {
+			DrawRectangleRec((Rectangle) {elm.pos.x, elm.pos.y, elm.size.x, elm.size.y}, elm.fill_color);
+		} break;
+		case UI_DRAW_ELEMENT_TYPE_BOX: {
+			DrawRectangleRec((Rectangle) {elm.pos.x, elm.pos.y, elm.size.x, elm.size.y}, elm.fill_color);
+			DrawRectangleLinesEx((Rectangle) {elm.pos.x, elm.pos.y, elm.size.x, elm.size.y}, 1.f, elm.out_color);
+		} break;
+		case UI_DRAW_ELEMENT_TYPE_SPRITE: {
+			Color previous_tint = elm.spr->tint;
+			elm.spr->tint = elm.fill_color;
+			Vector2 prev_spr_pos = elm.spr->pos;
+			elm.spr->pos = elm.pos;
+			draw_sprite(elm.spr);
+			elm.spr->pos = prev_spr_pos;
+			elm.spr->tint = previous_tint;
+		} break;
+		case UI_DRAW_ELEMENT_TYPE_SPRITE_FRAME: {
+			Color previous_tint = elm.spr->tint;
+			int prev_hframe = elm.spr->hframe;
+			int prev_vframe = elm.spr->vframe;
+			set_sprite_hframe(elm.spr, elm.hframe);
+			set_sprite_vframe(elm.spr, elm.vframe);
+			elm.spr->tint = elm.fill_color; Vector2 prev_spr_pos = elm.spr->pos;
+			elm.spr->pos = elm.pos;
+			draw_sprite(elm.spr);
+			elm.spr->pos = prev_spr_pos;
+			elm.spr->tint = previous_tint;
+			set_sprite_hframe(elm.spr, prev_hframe);
+			set_sprite_vframe(elm.spr, prev_vframe);
+		} break;
+		case UI_DRAW_ELEMENT_TYPE_TEXT: {
+			DrawTextEx(*elm.font, elm.text, elm.pos, elm.font_size, 1.f, elm.fill_color);
+		} break;
+		case UI_DRAW_ELEMENT_TYPE_COUNT:
+		default: ASSERT(0, "Unreachable!");
+		}
+	}
+    EndScissorMode();
+    // @TEMP
+    /* DrawCircleV(this->pos, 16.f, RED); */
+}
+
+void UI_end(UI* this) {
+    // Calculate bg_rect
+    /* Vector2 ui_size      = get_ui_size(this); */
+    Vector2 pos          = get_ui_bg_rect_pos(this);
+    this->bg_rect.x      = pos.x;
+    this->bg_rect.y      = pos.y;
+    this->bg_rect.width  = this->ui_rect.width + this->theme.bg_padding.x;
+    this->bg_rect.height  = this->ui_rect.height + this->theme.bg_padding.y;
+
+    this->ui_rect.x      = this->bg_rect.x + this->theme.bg_padding.x;
+    this->ui_rect.y      = this->bg_rect.y + this->theme.bg_padding.y;
+    this->ui_rect.width   -= this->theme.bg_padding.x;
+    this->ui_rect.height  -= this->theme.bg_padding.y;
+    /* this->ui_rect.width  = 300.f; */
+    /* this->ui_rect.height = 125.f; */
+
+	Vector2 title_pos  = this->pos;
+	Vector2 title_size = (Vector2) {this->bg_rect.width, this->theme.titlebar_height};
+	Rectangle titlebar = {
+			.x = title_pos.x,
+			.y = title_pos.y,
+			.width = title_size.x,
+			.height = title_size.y,
+	};
+	if (!mouse_button_down(MOUSE_BUTTON_LEFT)) {
+		this->is_moving = false;
+	}
+
+	Vector2 mpos = *this->mpos_ptr;
+	if (mouse_button_pressed(MOUSE_BUTTON_LEFT) &&
+			CheckCollisionPointRec(mpos, titlebar)) {
+		/* this->pos_offset = Vector2Subtract(Vector2Subtract(mpos, title_pos), (Vector2) {this->theme.bg_padding.x, 0.f}); */
+		this->pos_offset = Vector2Subtract(mpos, title_pos);
+		this->is_moving = true;
+	}
+
+	if (this->is_moving) {
+        ignore_mouse_input(true);
+        this->pos = Vector2Subtract(mpos, this->pos_offset);
+	} else {
+        if (mouse_button_pressed(MOUSE_BUTTON_MIDDLE) &&
+			CheckCollisionPointRec(mpos, titlebar)) {
+            this->show = !this->show;
+        }
+    }
+
+	// eat mouse input if clicked on ui rect
+	if (this->show) {
+	    Vector2 pos =  get_ui_bg_rect_pos(this);
+	    Vector2 size = { this->bg_rect.width, this->bg_rect.height };
+
+		 Rectangle rect = {
+            pos.x,
+            pos.y,
+            size.x,
+            size.y
+		 };
+
+		 if (mouse_button_down(MOUSE_BUTTON_LEFT) &&
+				 CheckCollisionPointRec(mpos, rect)) {
+             ignore_mouse_input(true);
+		 }
+	 }
+
+	this->last_used_id = 0;
+	UI_pop_layout(this);
+}
+
+void UI_free(UI* this) {
+	UI_Draw_element_stack_free(&this->draw_element_stack);
 }
 
 // Sprite
@@ -631,15 +1603,7 @@ void draw_text(Font font, const char *text, Vector2 pos, int font_size, Color co
 	draw_text_aligned(font, text, pos, font_size, TEXT_ALIGN_V_TOP, TEXT_ALIGN_H_LEFT, color);
 }
 
-// Misc
-Vector2 get_mpos_scaled(float scl) {
-	Vector2 m = GetMousePosition();
-	m.x *= scl;
-	m.y *= scl;
-	return m;
-}
-
-// Input
+// NOTE: Input
 bool input_to_buff(char *buff, size_t buff_cap, int *cursor) {
 		return input_to_buff_ignored(buff, buff_cap, cursor, 0, NULL);
 }

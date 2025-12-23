@@ -59,18 +59,34 @@ lua_State *L = NULL;
 #include <stb_ds.h>
 
 typedef enum State State;
+typedef enum Edit_state Edit_state;
 
 enum State {
     STATE_NORMAL,
-    STATE_EDIT_HITBOX,
+    STATE_EDIT,
     STATE_LUA,
     STATE_COUNT,
 };
 
+enum Edit_state {
+    EDSTATE_SPAWNERS,
+    EDSTATE_HITBOX,
+    EDSTATE_COUNT,
+};
+
+const char *edstate_as_str(const Edit_state state) {
+    switch (state) {
+        case EDSTATE_SPAWNERS: return "Spawners";
+        case EDSTATE_HITBOX:   return "Hitbox";
+        case EDSTATE_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
+}
+
 const char *state_as_str(const State state) {
     switch (state) {
         case STATE_NORMAL: return "Normal";
-        case STATE_EDIT_HITBOX: return "Edit Hitbox";
+        case STATE_EDIT: return "Edit";
         case STATE_LUA: return "Lua";
         case STATE_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
@@ -222,6 +238,9 @@ int main(void) {
     Textbox lua_func_tbox   = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-GLOBAL_FS-P-(1*H)), v2(200, H), 1024, "Lua Func", 'f');
     set_textbox_keys(&lua_func_tbox, KEY_F, KEY_F);
 
+    /// Edit Vars
+    Edit_state edstate = EDSTATE_HITBOX;
+    
     /// Edit Hitbox Vars
     Hitbox editing_hitbox = { .pos = {0, 0}, .size = {16,16}};
     Vector2 editing_hitbox_screen_pos = {WIDTH*0.5-(editing_hitbox.size.x*0.5), HEIGHT*0.5-(editing_hitbox.size.y*0.5)};
@@ -240,9 +259,15 @@ int main(void) {
     Texture2D editing_hitbox_texture = {0};
     float editing_hitbox_scale = 1;
 
+    // Mouse
+    Vector2 m = {0};
+
 	/// @DEBUG
 	float angle = 0;
 	Bullet_emitter em = make_bullet_emitter(L, v2(WIDTH*0.5, HEIGHT*0.5), &bullets, 0.05, "Pattern", (void*)&angle);
+
+    UI_Theme ui_theme = get_default_ui_theme();
+    UI ui = UI_make(ui_theme, &font, v2xx(P), "DEBUG", &m);
 
 	while (!WindowShouldClose()) {
         delta = GetFrameTime();
@@ -251,7 +276,18 @@ int main(void) {
 		arena_reset(&str_arena);
 
         BeginDrawing();
-        Vector2 m = get_mpos_scaled(SCREEN_SCALE);
+        m = get_mpos_scaled(SCREEN_SCALE);
+
+        // UI
+        // TODO: UI_begin or UI_end is causing segfault!
+        UI_begin(&ui, UI_LAYOUT_KIND_VERT);
+
+        if (UI_button(&ui, "Click Me!", GLOBAL_FS, GREEN)) {
+            log_debug("That tickles!");
+        }
+
+        log_debug("HER");
+        UI_end(&ui);
 
 		// Input
         if (IsKeyPressed(KEY_F1)) CHANGE_STATE(STATE_NORMAL);
@@ -307,7 +343,7 @@ int main(void) {
                 }
 
             } break;
-            case STATE_EDIT_HITBOX: {
+            case STATE_EDIT: {
                 int active_count = 0;
                 for (int i = 0; i < ARRAY_LEN(editing_textboxes); ++i) {
                     Textbox *tbox = &editing_textboxes[i];
@@ -479,7 +515,7 @@ int main(void) {
                 }
 
             } break;
-            case STATE_EDIT_HITBOX: {
+            case STATE_EDIT: {
                 if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))   { moving_offset = v2_sub(m, editing_hitbox_screen_pos); }
 
                 if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
@@ -542,7 +578,7 @@ int main(void) {
                 DrawRectangleLinesEx(bounds, 1.f, WHITE);
 
             } break;
-            case STATE_EDIT_HITBOX: {
+            case STATE_EDIT: {
                 DrawRectangleV(v2xx(0), v2(WIDTH, HEIGHT), ColorAlpha(BLACK, 1));
 
                 if (IsTextureReady(editing_hitbox_texture)) {
@@ -596,6 +632,9 @@ int main(void) {
         draw_ren_tex(ren_tex, SCREEN_WIDTH, SCREEN_HEIGHT);
         EndDrawing();
 	}
+
+    // NOTE: CLEANUP
+    UI_free(&ui);
 
     for (int i = 0; i < ARRAY_LEN(editing_textboxes); ++i) {
         Textbox *tbox = &editing_textboxes[i];
