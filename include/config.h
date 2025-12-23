@@ -1,6 +1,7 @@
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
 
+#include <lua.h>
 #include <raylib.h>
 #include <stdbool.h>
 #include <engine.h>
@@ -33,12 +34,6 @@ extern Arena arena;
 extern Arena temp_arena;
 extern Arena str_arena;
 
-// Hot-relaodable config
-extern const char *TEXTURE_PATH;
-extern const char *HITBOX_PATH;
-extern const char *SCRIPT_PATH;
-extern const char *HITBOXES_SCRIPT_PATH;
-extern const char *RUMIA_SHOT_TEXPATH;
-extern float RUMIA_SHOT_SPEED;
+extern lua_State *L;
 
 #endif // _CONFIG_H_
