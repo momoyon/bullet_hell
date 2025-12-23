@@ -39,6 +39,7 @@ extern Arena str_arena;
 #define TEXTURE_PATH "resources/gfx/"
 #define HITBOX_PATH "resources/hbox/"
 #define SCRIPT_PATH "resources/scripts/"
+#define HITBOXES_SCRIPT_PATH SCRIPT_PATH"/hitboxes.lua"
 
 /// NOTE: RUMIA
 #define RUMIA_SHOT_TEXPATH "resources/gfx/rumia_shot.png"

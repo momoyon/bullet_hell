@@ -1,6 +1,7 @@
 #include <common.h>
 #include <engine.h>
 #include <config.h>
+#include <lauxlib.h>
 
 void bind(Vector2 *p, Hitbox hbox, Rectangle bound) {
     if (hbox.pos.x + p->x < bound.x) p->x = bound.x - hbox.pos.x;
@@ -52,3 +53,6 @@ bool lua_check(lua_State *L, int ret) {
     return true;
 }
 
+void refresh_hitboxes_script(lua_State *L) {
+    lua_check(L, luaL_dofile(L, HITBOXES_SCRIPT_PATH));
+}

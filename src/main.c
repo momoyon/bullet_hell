@@ -86,12 +86,14 @@ const char *state_as_str(const State state) {
 void confirm_filepath_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_texture, Textbox *editing_textboxes, Textbox *tbox) {
     (void)editing_hitbox_texture;
     (void)editing_textboxes;
-    const char *actual_editing_hitbox_filepath = arena_alloc_str(str_arena, HITBOX_PATH"%s", tbox->buff);
-    if (load_hitbox_from_file(editing_hitbox, actual_editing_hitbox_filepath)) {
-        log_debug("Successfully loaded hitbox from %s", actual_editing_hitbox_filepath);
-    } else {
-        log_error("Failed to load hitbox from %s", actual_editing_hitbox_filepath);
-    }
+    (void)editing_hitbox;
+    (void)tbox;
+    // const char *actual_editing_hitbox_filepath = arena_alloc_str(str_arena, HITBOX_PATH"%s", tbox->buff);
+    // if (load_hitbox_from_file(editing_hitbox, actual_editing_hitbox_filepath)) {
+    //     log_debug("Successfully loaded hitbox from %s", actual_editing_hitbox_filepath);
+    // } else {
+    //     log_error("Failed to load hitbox from %s", actual_editing_hitbox_filepath);
+    // }
 }
 
 void confirm_texpath_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_texture, Textbox *editing_textboxes, Textbox *tbox) {
@@ -130,6 +132,7 @@ int main(void) {
     define_hitbox_struct_in_lua(L);
     define_bullet_struct_in_lua(L);
 
+    refresh_hitboxes_script(L);
 
     luaL_dofile(L, SCRIPT_PATH"test.lua");
 
@@ -362,18 +365,19 @@ int main(void) {
                         // Save
                         const char *actual_editing_hitbox_filepath = arena_alloc_str(str_arena, HITBOX_PATH"%s", editing_textboxes[TEXTBOX_FILEPATH].buff);
                         if (IsKeyPressed(KEY_S)) {
-                            if (save_hitbox_to_file(&editing_hitbox, actual_editing_hitbox_filepath)) {
-                                log_debug("Successfully saved hitbox to %s", actual_editing_hitbox_filepath);
+                            if (save_hitbox_to_lua_script(&editing_hitbox, editing_textboxes[TEXTBOX_FILEPATH].buff, HITBOXES_SCRIPT_PATH)) {
+                                refresh_hitboxes_script(L);
+                                log_debug("Successfully saved hitbox %s to %s", editing_textboxes[TEXTBOX_FILEPATH].buff, HITBOXES_SCRIPT_PATH);
                             } else {
-                                log_error("Failed to save hitbox to %s", actual_editing_hitbox_filepath);
+                                log_debug("Failed to save hitbox %s to %s", editing_textboxes[TEXTBOX_FILEPATH].buff, HITBOXES_SCRIPT_PATH);
                             }
                         }
                         // Load
                         if (IsKeyPressed(KEY_L)) {
-                            if (load_hitbox_from_file(&editing_hitbox, actual_editing_hitbox_filepath)) {
-                                log_debug("Successfully loaded hitbox from %s", actual_editing_hitbox_filepath);
+                            if (load_hitbox_from_lua(&editing_hitbox, editing_textboxes[TEXTBOX_FILEPATH].buff, L)) {
+                                log_debug("Successfully loaded hitbox %s", editing_textboxes[TEXTBOX_FILEPATH].buff);
                             } else {
-                                log_error("Failed to load hitbox from %s", actual_editing_hitbox_filepath);
+                                log_error("Failed to load hitbox %s", editing_textboxes[TEXTBOX_FILEPATH].buff);
                             }
                         }
                     }

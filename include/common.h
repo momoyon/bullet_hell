@@ -14,5 +14,6 @@ bool is_key_down_ON_key_down_OR_key_pressed_repeat(int key, int on_key);
 
 // Lua Helpers
 bool lua_check(lua_State *L, int ret);
+void refresh_hitboxes_script(lua_State *L);
 
 #endif // COMMON_H_

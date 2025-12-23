@@ -31,7 +31,7 @@ void update_bullet_emitter(Bullet_emitter *em) {
 
                 int bullets_count = lua_tonumber(em->L, -1);
                 lua_pop(em->L, 1);
-                log_debug("Bullets Count: %d", bullets_count);
+                // log_debug("Bullets Count: %d", bullets_count);
 
                 Bullets bs = {0};
 

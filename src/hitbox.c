@@ -3,6 +3,7 @@
 #include <hitbox.h>
 #include <stdio.h>
 #include <common.h>
+#include <config.h>
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 #include <errno.h>
@@ -27,6 +28,32 @@ void define_hitbox_struct_in_lua(lua_State *L) {
         exit(1);
     }
     log_debug("Defined Hitbox struct in LUA!");
+}
+
+bool save_hitbox_to_lua_script(const Hitbox *hbox, const char *name, const char *scriptpath) {
+    FILE *f = fopen(scriptpath, "a");
+    if (!f) {
+        log_error("save_hitbox_to_lua_script(): Failed to open %s", scriptpath);
+        return false;
+    }
+
+    fprintf(f, "%s_hitbox = Hitbox.new(%f, %f, %f, %f)\n", name, hbox->pos.x, hbox->pos.y, hbox->size.x, hbox->size.y);
+
+    fclose(f);
+    return true;
+}
+
+bool load_hitbox_from_lua(Hitbox *hbox, const char *name, lua_State *L) {
+    int type = lua_getglobal(L, name);
+
+    if (type == LUA_TNIL) {
+        log_error("Failed to find hitbox %s", name);
+        return false;
+    }
+
+    *hbox = hitbox_from_lua(L);
+
+    return true;
 }
 
 bool load_hitbox_from_file(Hitbox *hbox, const char *filepath) {
