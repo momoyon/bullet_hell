@@ -153,7 +153,7 @@ Bullet parse_bullet_from_lua(lua_State *L) {
     Hitbox hbox = hitbox_from_lua(L);
     lua_pop(L, 1);
 
-    Bullet b = make_bullet(v2(x, y), arena_alloc_str(str_arena, TEXTURE_PATH"%s", texname), hframes, vframes, dir_degrees, speed, hbox);
+    Bullet b = make_bullet(v2(x, y), arena_alloc_str(str_arena, "%s%s", TEXTURE_PATH, texname), hframes, vframes, dir_degrees, speed, hbox);
     set_bullet_speed(&b, speed, min_speed, max_speed, speed_dt);
 
     // log_debug("END PARSING BULLET FROM LUA: %d", lua_gettop(L));

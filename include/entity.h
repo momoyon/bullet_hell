@@ -20,7 +20,6 @@ struct Entity {
 	Bullets *shots_ptr; // Only for player
     float fire_rate;
     Alarm fire_alarm;
-    float shot_speed; // Only for player
     Hitbox shot_hitbox; // Only for player
     const char *shot_texpath; // Only for player
     Texture2D tex;
@@ -36,7 +35,7 @@ typedef struct {
 } Entities;
 
 Entity make_entity(Vector2 pos, const char *texpath, int hframes, int vframes, float speed, Hitbox hitbox);
-Entity make_player(Bullets *shots_ptr, Vector2 pos, float fire_rate, float unfocus_speed, float focus_speed, const char *texpath, int hframes, int vframes, Hitbox hitbox, Hitbox bounding_hbox, float shot_speed, Hitbox shot_hitbox, const char *shot_texpath);
+Entity make_player(Bullets *shots_ptr, Vector2 pos, float fire_rate, float unfocus_speed, float focus_speed, const char *texpath, int hframes, int vframes, Hitbox hitbox, Hitbox bounding_hbox, Hitbox shot_hitbox, const char *shot_texpath);
 void control_entity(Entity *e, Control controls);
 void update_entity(Entity *e);
 void draw_entity(Entity *e);

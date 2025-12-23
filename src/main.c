@@ -38,6 +38,7 @@ bool DEBUG_DRAW = true;
 bool DEBUG_DRAW = false;
 #endif // DEBUG
 
+// Externs
 RenderTexture2D ren_tex;
 Texture_manager tm;
 Font font;
@@ -50,6 +51,16 @@ Arena str_arena;
 Bullets bullets = {0};
 Bullets shots = {0};
 Entities enemies = {0};
+
+float CAM_SPEED;
+float CAMERA_DEFAULT_ZOOM;
+float SPRITE_SCALE;
+const char *TEXTURE_PATH;
+const char *HITBOX_PATH;
+const char *SCRIPT_PATH;
+const char *HITBOXES_SCRIPT_PATH;
+const char *RUMIA_SHOT_TEXPATH;
+float RUMIA_SHOT_SPEED;
 
 #define STB_DS_IMPLEMENTATION
 #include <stb_ds.h>
@@ -100,7 +111,7 @@ void confirm_texpath_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_text
     (void)editing_textboxes;
     (void)editing_hitbox;
     memset(editing_hitbox_texture, 0, sizeof(Texture2D));
-    const char *actual_editing_hitbox_texpath = arena_alloc_str(str_arena, TEXTURE_PATH"%s", tbox->buff);
+    const char *actual_editing_hitbox_texpath = arena_alloc_str(str_arena, "%s%s", TEXTURE_PATH, tbox->buff);
     if (!load_texture_(&tm, actual_editing_hitbox_texpath, editing_hitbox_texture, true)) {
         log_error("Failed to load texture %s", actual_editing_hitbox_texpath);
     } else {
@@ -119,6 +130,10 @@ void confirm_name_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_texture
 }
 
 int main(void) {
+	arena      = arena_make(0);
+	temp_arena = arena_make(0);
+	str_arena  = arena_make(4*1024);
+
     lua_State *L = luaL_newstate();
     if (L == NULL) {
         log_error("Failed to init Lua State!");
@@ -132,9 +147,11 @@ int main(void) {
     define_hitbox_struct_in_lua(L);
     define_bullet_struct_in_lua(L);
 
+    load_config(L);
+
     refresh_hitboxes_script(L);
 
-    luaL_dofile(L, SCRIPT_PATH"preload.lua");
+    luaL_dofile(L, arena_alloc_str(str_arena, "%s%s", SCRIPT_PATH, "preload.lua"));
 
 	ren_tex = init_window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SCALE, "Bullet Hell", &WIDTH, &HEIGHT);
 	SetTargetFPS(60);
@@ -157,7 +174,7 @@ int main(void) {
     load_all_textures();
 
     Texture2D tex = {0};
-    load_texture(&tm, TEXTURE_PATH"rumia_player.png", &tex);
+    load_texture(&tm, arena_alloc_str(str_arena, "%s%s", TEXTURE_PATH, "rumia_player.png"), &tex);
     Sprite spr = {0};
     init_sprite(&spr, tex, 3, 1);
     center_sprite_origin(&spr);
@@ -170,20 +187,17 @@ int main(void) {
         return 1;
     }
 
-	arena      = arena_make(0);
-	temp_arena = arena_make(0);
-	str_arena  = arena_make(4*1024);
 
     Hitbox player_hitbox = {0};
-    if (!load_hitbox_from_file(&player_hitbox, HITBOX_PATH"rumia_player.hitbox")) return 1;
+    if (!load_hitbox_from_file(&player_hitbox, arena_alloc_str(str_arena, "%s%s", HITBOX_PATH, "rumia_player.hitbox"))) return 1;
     Hitbox player_hitbox_bounding = {0};
-    if (!load_hitbox_from_file(&player_hitbox_bounding, HITBOX_PATH"rumia_player_bounding.hitbox")) return 1;
+    if (!load_hitbox_from_file(&player_hitbox_bounding, arena_alloc_str(str_arena, "%s%s", HITBOX_PATH, "rumia_player_bounding.hitbox"))) return 1;
     player_hitbox.color = YELLOW;
     player_hitbox_bounding.color = GREEN;
     Hitbox shot_hitbox = {0};
-    if (!load_hitbox_from_file(&shot_hitbox, HITBOX_PATH"rumia_shot.hitbox")) return 1;
+    if (!load_hitbox_from_file(&shot_hitbox, arena_alloc_str(str_arena, "%s%s", HITBOX_PATH, "rumia_shot.hitbox"))) return 1;
     shot_hitbox.color = BLUE;
-	Entity player = make_player(&shots, v2(WIDTH*0.5, HEIGHT*0.5), 0.05f, 400.f, 200.f, "resources/gfx/rumia_player.png", 3, 1, player_hitbox, player_hitbox_bounding, RUMIA_SHOT_SPEED, shot_hitbox, RUMIA_SHOT_TEXPATH);
+	Entity player = make_player(&shots, v2(WIDTH*0.5, HEIGHT*0.5), 0.05f, 400.f, 200.f, "resources/gfx/rumia_player.png", 3, 1, player_hitbox, player_hitbox_bounding, shot_hitbox, RUMIA_SHOT_TEXPATH);
 
 	font = GetFontDefault();
 	if (!IsFontReady(font)) {
@@ -278,16 +292,21 @@ int main(void) {
                 /// @DEBUG
                 if (IsKeyPressed(KEY_E)) {
                     Hitbox hbox = {0};
-                    load_hitbox_from_file(&hbox, HITBOX_PATH"spawnite.hitbox");
+                    load_hitbox_from_file(&hbox, arena_alloc_str(str_arena, "%s%s", HITBOX_PATH, "spawnite.hitbox"));
                     hbox.color = RED;
-                    Entity e = make_entity(m, TEXTURE_PATH"spawnite.png", 1, 1, 200.f, hbox);
+                    Entity e = make_entity(m, arena_alloc_str(str_arena, "%s%s", TEXTURE_PATH, "spawnite.png"), 1, 1, 200.f, hbox);
 
                     darr_append(enemies, e);
+                }
+                
+                // Reload config
+                if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_C)) {
+                    load_config(L);
                 }
 
                 // Reload lua script
                 if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_R)) {
-                    if (!lua_check(L, luaL_dofile(L, SCRIPT_PATH"reload.lua"))) {
+                    if (!lua_check(L, luaL_dofile(L, arena_alloc_str(str_arena, "%s%s", SCRIPT_PATH, "reload.lua")))) {
                         log_error("%s", "Failed to reload!");
                     } else {
                         log_debug("%s", "Reloaded succesfully!");
@@ -373,7 +392,6 @@ int main(void) {
 
                     if (IsKeyDown(KEY_LEFT_CONTROL)) {
                         // Save
-                        const char *actual_editing_hitbox_filepath = arena_alloc_str(str_arena, HITBOX_PATH"%s", editing_textboxes[TEXTBOX_FILEPATH].buff);
                         if (IsKeyPressed(KEY_S)) {
                             if (save_hitbox_to_lua_script(&editing_hitbox, editing_textboxes[TEXTBOX_FILEPATH].buff, HITBOXES_SCRIPT_PATH)) {
                                 refresh_hitboxes_script(L);
@@ -486,7 +504,7 @@ int main(void) {
                     if (input_to_textbox(&lua_script_tbox)) {
                         lua_script_tbox.active = false;
 
-                        const char *actual_lua_scriptpath = arena_alloc_str(str_arena, SCRIPT_PATH"%s", lua_script_tbox.buff);
+                        const char *actual_lua_scriptpath = arena_alloc_str(str_arena, "%s%s", SCRIPT_PATH, lua_script_tbox.buff);
                         if (!lua_check(L, luaL_dofile(L, actual_lua_scriptpath))) {
                             log_error("Failed to do file %s", actual_lua_scriptpath);
                         } else {

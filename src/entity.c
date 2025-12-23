@@ -19,7 +19,7 @@ Entity make_entity(Vector2 pos, const char *texpath, int hframes, int vframes, f
     return res;
 }
 
-Entity make_player(Bullets *shots_ptr, Vector2 pos, float fire_rate, float unfocus_speed, float focus_speed, const char *texpath, int hframes, int vframes, Hitbox hitbox, Hitbox bounding_hbox, float shot_speed, Hitbox shot_hitbox, const char *shot_texpath) {
+Entity make_player(Bullets *shots_ptr, Vector2 pos, float fire_rate, float unfocus_speed, float focus_speed, const char *texpath, int hframes, int vframes, Hitbox hitbox, Hitbox bounding_hbox, Hitbox shot_hitbox, const char *shot_texpath) {
     Entity res = {
         .fire_rate = fire_rate,
         .shots_ptr = shots_ptr,
@@ -30,7 +30,6 @@ Entity make_player(Bullets *shots_ptr, Vector2 pos, float fire_rate, float unfoc
 		.focus_speed = focus_speed,
         .hitbox = hitbox,
         .bounding_hitbox = bounding_hbox,
-        .shot_speed = shot_speed,
         .shot_hitbox = shot_hitbox,
         .shot_texpath = shot_texpath,
 	};
@@ -69,7 +68,7 @@ void control_entity(Entity *e, Control controls) {
 
         if (on_action_held(&controls, ACTION_FIRE) && on_alarm(&e->fire_alarm, modified_delta)) {
             Vector2 spawn_pos = v2(e->pos.x, e->pos.y - e->spr.height * 0.5);
-            Bullet shot = make_bullet(spawn_pos, TEXTURE_PATH"rumia_shot.png", 1, 1, 270+randomf(-1, 1), e->shot_speed, e->shot_hitbox);
+            Bullet shot = make_bullet(spawn_pos, arena_alloc_str(str_arena, "%s%s", TEXTURE_PATH, "rumia_shot.png"), 1, 1, 270+randomf(-1, 1), RUMIA_SHOT_SPEED, e->shot_hitbox);
             darr_append((*e->shots_ptr), shot);
         }
 	}

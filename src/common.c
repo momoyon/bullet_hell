@@ -2,6 +2,7 @@
 #include <engine.h>
 #include <config.h>
 #include <lauxlib.h>
+#include <lua.h>
 
 void bind(Vector2 *p, Hitbox hbox, Rectangle bound) {
     if (hbox.pos.x + p->x < bound.x) p->x = bound.x - hbox.pos.x;
@@ -51,6 +52,49 @@ bool lua_check(lua_State *L, int ret) {
         return false;
     }
     return true;
+}
+
+const char *lua_getstring(lua_State *L, const char *name) {
+    int type = lua_getglobal(L, name);
+    const char *res = NULL;
+    if (type != LUA_TSTRING) {
+        log_error("Expected string but got %s", lua_typename(L, type));
+        return NULL;
+    }
+    res = lua_tostring(L, -1);
+    lua_pop(L, 1);
+
+    return res;
+}
+
+float lua_getfloat(lua_State *L, const char *name) {
+    int type = lua_getglobal(L, name);
+    float res = 0;
+    if (type != LUA_TNUMBER) {
+        log_error("Expected float but got %s", lua_typename(L, type));
+        return 0;
+    }
+    res = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    return res;
+}
+
+void load_config(lua_State *L) {
+    // config.lua path has to be hard-coded
+    if (!lua_check(L, luaL_dofile(L, "resources/scripts/config.lua"))) {
+        log_error("Failed to load config!");
+    } else {
+        TEXTURE_PATH         = lua_getstring(L, "TEXTURE_PATH");
+        HITBOX_PATH          = lua_getstring(L, "HITBOX_PATH");
+        SCRIPT_PATH          = lua_getstring(L, "SCRIPT_PATH");
+        HITBOXES_SCRIPT_PATH = lua_getstring(L, "HITBOXES_SCRIPT_PATH");
+        
+        RUMIA_SHOT_TEXPATH   = lua_getstring(L, "RUMIA_SHOT_TEXPATH");
+        RUMIA_SHOT_SPEED     = lua_getfloat(L, "RUMIA_SHOT_SPEED");
+
+        log_debug("Loaded config!");
+    }
 }
 
 void refresh_hitboxes_script(lua_State *L) {

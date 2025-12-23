@@ -33,16 +33,12 @@ extern Arena arena;
 extern Arena temp_arena;
 extern Arena str_arena;
 
-#define CAM_SPEED 100.f
-#define CAMERA_DEFAULT_ZOOM 1.5f
-#define SPRITE_SCALE 2.f
-#define TEXTURE_PATH "resources/gfx/"
-#define HITBOX_PATH "resources/hbox/"
-#define SCRIPT_PATH "resources/scripts/"
-#define HITBOXES_SCRIPT_PATH SCRIPT_PATH"/hitboxes.lua"
-
-/// NOTE: RUMIA
-#define RUMIA_SHOT_TEXPATH "resources/gfx/rumia_shot.png"
-#define RUMIA_SHOT_SPEED 1500
+// Hot-relaodable config
+extern const char *TEXTURE_PATH;
+extern const char *HITBOX_PATH;
+extern const char *SCRIPT_PATH;
+extern const char *HITBOXES_SCRIPT_PATH;
+extern const char *RUMIA_SHOT_TEXPATH;
+extern float RUMIA_SHOT_SPEED;
 
 #endif // _CONFIG_H_
