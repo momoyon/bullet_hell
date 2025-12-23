@@ -51,6 +51,7 @@ Arena str_arena;
 Bullets bullets = {0};
 Bullets shots = {0};
 Entities enemies = {0};
+Spawners spawners = {0};
 
 lua_State *L = NULL;
 
@@ -601,6 +602,7 @@ int main(void) {
         free_textbox(tbox);
     }
 
+    // TODO: Free darrs
     lua_close(L);
 	close_window(ren_tex);
 	return 0;

@@ -7,6 +7,7 @@
 #include <engine.h>
 #include <bullet.h>
 #include <entity.h>
+#include <spawner.h>
 
 #include <control_config.h>
 
@@ -29,6 +30,7 @@ extern float delta_modification;
 extern Bullets bullets;
 extern Bullets shots;
 extern Entities enemies;
+extern Spawners spawners;
 
 extern Arena arena;
 extern Arena temp_arena;
