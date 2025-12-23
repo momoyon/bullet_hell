@@ -41,3 +41,14 @@ bool is_key_pressed_repeat(int key) {
 bool is_key_down_ON_key_down_OR_key_pressed_repeat(int key, int on_key) {
     return IsKeyDown(on_key) ? IsKeyDown(key) : is_key_pressed_repeat(key);
 }
+
+// Lua Helpers
+bool lua_check(lua_State *L, int ret) {
+    if (ret != LUA_OK) {
+        log_error("LUA ERROR: %s", lua_tostring(L, -1));
+        lua_pop(L, 1);
+        return false;
+    }
+    return true;
+}
+

@@ -2,9 +2,32 @@
 #include <engine.h>
 #include <hitbox.h>
 #include <stdio.h>
+#include <common.h>
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 #include <errno.h>
+#include <lua.h>
+#include <lualib.h>
+#include <lauxlib.h>
+
+void define_hitbox_struct_in_lua(lua_State *L) {
+    if (!lua_check(L, luaL_dostring(L,
+                "Hitbox = {}\n"
+                "Hitbox.__index = Hitbox\n"
+                "function Hitbox.new(x, y, w, h)\n"
+                "local self = setmetatable({}, Hitbox)\n"
+                "self.x = x\n"
+                "self.y = y\n"
+                "self.w = w\n"
+                "self.h = h\n"
+                "return self\n"
+                "end\n"
+                  ))) {
+        log_error("Failed to define Hitbox struct in LUA!");
+        exit(1);
+    }
+    log_debug("Defined Hitbox struct in LUA!");
+}
 
 bool load_hitbox_from_file(Hitbox *hbox, const char *filepath) {
     return load_hitbox_from_file_scaled(hbox, filepath, 1.0f);
@@ -125,4 +148,27 @@ bool check_hitbox_on_hitbox_collision(Vector2 a_pos, Hitbox a, Vector2 b_pos, Hi
     };
 
     return CheckCollisionRecs(rect_a, rect_b);
+}
+
+Hitbox hitbox_from_lua(lua_State *L) {
+    // log_debug("BEGIN PARSING HITBOX FROM LUA: %d", lua_gettop(L));
+
+    lua_getfield(L, -1, "x");
+    float x = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "y");
+    float y = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "w");
+    float w = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "h");
+    float h = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    // log_debug("END PARSING HITBOX FROM LUA: %d", lua_gettop(L));
+    return (Hitbox) { .pos = {x, y}, .size = {w, h} };
 }

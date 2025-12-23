@@ -11,7 +11,7 @@
 
 // #include <common.h>
 
-#define LUA_CALL(nargs, nresults) \
+#define LUA_FUNCALL(nargs, nresults) \
     if (lua_pcall(L, (nargs), (nresults), 0) != LUA_OK) {\
         log_error("LUA ERROR: %s", lua_tostring(L, -1));\
         lua_pop(L, 1);\
@@ -59,6 +59,7 @@ typedef enum State State;
 enum State {
     STATE_NORMAL,
     STATE_EDIT_HITBOX,
+    STATE_LUA,
     STATE_COUNT,
 };
 
@@ -66,6 +67,7 @@ const char *state_as_str(const State state) {
     switch (state) {
         case STATE_NORMAL: return "Normal";
         case STATE_EDIT_HITBOX: return "Edit Hitbox";
+        case STATE_LUA: return "Lua";
         case STATE_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -114,47 +116,6 @@ void confirm_name_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_texture
     confirm_texpath_tbox(editing_hitbox, editing_hitbox_texture, editing_textboxes, &editing_textboxes[TEXTBOX_TEXPATH]);
 }
 
-Bullets pattern1(Vector2 pos, void *userdata) {
-    Bullets _bullets = {0};
-	if (userdata == NULL) {
-		log_error("userdata is NULL; expected angle (float *)!");
-		return _bullets;
-	}
-	float *angle = (float*)userdata;
-    Hitbox hbox = {0};
-	Bullet b = make_bullet(pos, TEXTURE_PATH"bullet.png", 1, 1, *angle, 100.f, hbox);
-	set_bullet_speed(&b, 500.f, 100.f, 500.f, -200.f);
-	*angle += modified_delta * 400.f;
-
-	darr_append(_bullets, b);
-
-	return _bullets;
-}
-
-int lua_get_bullets_count(lua_State *L) {
-    Bullets **ud = (Bullets **)luaL_checkudata(L, 1, "BulletsMeta");
-    Bullets *bullets = *ud;
-
-    lua_pushinteger(L, bullets->count);
-
-    return 1;
-}
-
-int lua_get_bullets_items(lua_State *L) {
-    Bullets **ud = (Bullets **)luaL_checkudata(L, 1, "BulletsMeta");
-    Bullets *bullets = *ud;
-
-    // Create a new table to represent items
-    lua_newtable(L);
-
-    for (size_t i = 0; i < bullets->count; ++i) {
-        lua_pushinteger(L, 69); // Push the Bullet ID
-        lua_seti(L, -2, i + 1); // Set table index (1-based)
-    }
-
-    return 1; // Number of return values (the new table)
-}
-
 int main(void) {
     lua_State *L = luaL_newstate();
     if (L == NULL) {
@@ -165,36 +126,12 @@ int main(void) {
         luaL_openlibs(L);
     }
 
-    if (luaL_dofile(L, SCRIPT_PATH"test.lua") != LUA_OK) {
-        log_error("LUA ERROR: %s", lua_tostring(L, -1));
-        lua_pop(L, 1);
-        return 1;
-    }
+    // Define structs in LUA
+    define_hitbox_struct_in_lua(L);
+    define_bullet_struct_in_lua(L);
 
-    luaL_newmetatable(L, "BulletsMeta");
 
-    lua_pushcfunction(L, lua_get_bullets_count);
-    lua_setfield(L, -2, "get_count");
-
-    lua_pushcfunction(L, lua_get_bullets_items);
-    lua_setfield(L, -2, "get_items");
-
-    Bullets *ud = (Bullets *)lua_newuserdata(L, sizeof(Bullets));
-    *ud = bullets;
-
-    luaL_getmetatable(L, "BulletsMeta");
-    lua_setmetatable(L, -2);
-
-    lua_getglobal(L, "Pattern1");
-    lua_pushvalue(L, -2);
-    LUA_CALL(1, 0);
-
-    // lua_getglobal(L, "Add");
-    // lua_pushnumber(L, 2);
-    // lua_pushnumber(L, 3);
-    //
-    // LUA_CALL(2, 1);
-
+    luaL_dofile(L, SCRIPT_PATH"test.lua");
 
 	ren_tex = init_window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SCALE, "Bullet Hell", &WIDTH, &HEIGHT);
 	SetTargetFPS(60);
@@ -266,10 +203,18 @@ int main(void) {
 
     CHANGE_STATE(STATE_NORMAL);
 
+    int P=10;
+
+    /// Lua Vars
+    int H=GLOBAL_FS+2;
+    Textbox lua_script_tbox = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-GLOBAL_FS-P-(0*H)), v2(200, H), 1024, "Lua Script", ' ');
+    set_textbox_keys(&lua_script_tbox, KEY_SPACE, KEY_SPACE);
+    Textbox lua_func_tbox   = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-GLOBAL_FS-P-(1*H)), v2(200, H), 1024, "Lua Func", 'f');
+    set_textbox_keys(&lua_func_tbox, KEY_F, KEY_F);
+
     /// Edit Hitbox Vars
     Hitbox editing_hitbox = { .pos = {0, 0}, .size = {16,16}};
     Vector2 editing_hitbox_screen_pos = {WIDTH*0.5-(editing_hitbox.size.x*0.5), HEIGHT*0.5-(editing_hitbox.size.y*0.5)};
-    int P=10;
     Vector2 moving_offset = {0};
 
     Textbox editing_textboxes[3] = {
@@ -287,7 +232,7 @@ int main(void) {
 
 	/// @DEBUG
 	float angle = 0;
-	Bullet_emitter em = make_bullet_emitter(v2(WIDTH*0.5, HEIGHT*0.5), &bullets, 0.05, pattern1, (void*)&angle);
+	Bullet_emitter em = make_bullet_emitter(L, v2(WIDTH*0.5, HEIGHT*0.5), &bullets, 0.05, "Pattern", (void*)&angle);
 
 	while (!WindowShouldClose()) {
         delta = GetFrameTime();
@@ -446,6 +391,10 @@ int main(void) {
 
 
             } break;
+            case STATE_LUA: {
+                if (IsKeyPressed(KEY_C)) {
+                }
+            } break;
             case STATE_COUNT:
             default: ASSERT(false, "UNREACHABLE!");
         }
@@ -512,6 +461,26 @@ int main(void) {
                     editing_hitbox_screen_pos = v2_sub(m, moving_offset);
                 }
             } break;
+            case STATE_LUA: {
+                if (update_textbox(&lua_func_tbox)) {
+                    if (input_to_textbox(&lua_func_tbox)) {
+                        lua_func_tbox.active = false;
+
+                        log_debug("LUA FUNC: %s", lua_func_tbox.buff);
+                    }
+                } else if (update_textbox(&lua_script_tbox)) {
+                    if (input_to_textbox(&lua_script_tbox)) {
+                        lua_script_tbox.active = false;
+
+                        const char *actual_lua_scriptpath = arena_alloc_str(str_arena, SCRIPT_PATH"%s", lua_script_tbox.buff);
+                        if (!lua_check(L, luaL_dofile(L, actual_lua_scriptpath))) {
+                            log_error("Failed to do file %s", actual_lua_scriptpath);
+                        } else {
+                            log_debug("Done file %s", actual_lua_scriptpath);
+                        }
+                    }
+                }
+            } break;
             case STATE_COUNT:
             default: ASSERT(false, "UNREACHABLE!");
         }
@@ -576,6 +545,10 @@ int main(void) {
                     draw_textbox(tbox);
                 }
             } break;
+            case STATE_LUA: {
+                draw_textbox(&lua_script_tbox);
+                draw_textbox(&lua_func_tbox);
+            } break;
             case STATE_COUNT:
             default: ASSERT(false, "UNREACHABLE!");
         }
@@ -584,10 +557,12 @@ int main(void) {
             Vector2 p = {10, 10};
             int font_size = 24;
             draw_info_text(&p, arena_alloc_str(str_arena, "State: %s", state_as_str(current_state)), font_size, WHITE);
-            draw_info_text(&p, arena_alloc_str(str_arena, "Delta [mod * dt: mod_dt]: %f * %f: %f", delta_modification, delta, modified_delta), font_size, WHITE);
-            draw_info_text(&p, arena_alloc_str(str_arena, "Bullets count: %zu", bullets.count), font_size, RED);
-            draw_info_text(&p, arena_alloc_str(str_arena, "Shots count: %zu", shots.count), font_size, RED);
-            draw_info_text(&p, arena_alloc_str(str_arena, "Enemies count: %zu", enemies.count), font_size, RED);
+            if (current_state == STATE_NORMAL) {
+                draw_info_text(&p, arena_alloc_str(str_arena, "Delta [mod * dt: mod_dt]: %f * %f: %f", delta_modification, delta, modified_delta), font_size, WHITE);
+                draw_info_text(&p, arena_alloc_str(str_arena, "Bullets count: %zu", bullets.count), font_size, RED);
+                draw_info_text(&p, arena_alloc_str(str_arena, "Shots count: %zu", shots.count), font_size, RED);
+                draw_info_text(&p, arena_alloc_str(str_arena, "Enemies count: %zu", enemies.count), font_size, RED);
+            }
 
             DrawFPS(0, 0);
         }

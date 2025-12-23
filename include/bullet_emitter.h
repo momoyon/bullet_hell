@@ -13,11 +13,12 @@ struct Bullet_emitter {
 	Bullets *bullets_ptr;
 	Alarm alarm;
 	Vector2 pos;
-	Bullet_pattern_fn pattern_fn;
+    const char *lua_pattern_funcname;
+    lua_State *L;
 	void *userdata;
 };
 
-Bullet_emitter make_bullet_emitter(Vector2 pos, Bullets *bullets_ptr, float fire_rate, Bullet_pattern_fn pattern_fn, void *userdata);
+Bullet_emitter make_bullet_emitter(lua_State *L, Vector2 pos, Bullets *bullets_ptr, float fire_rate, const char *pattern_funcname, void *userdata);
 void update_bullet_emitter(Bullet_emitter *em);
 
 #endif // BULLET_EMITTER_H_

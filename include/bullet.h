@@ -3,6 +3,7 @@
 #include <raylib.h>
 #include <hitbox.h>
 #include <engine.h>
+#include <lua.h>
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
@@ -32,9 +33,11 @@ struct Bullets {
 	size_t capacity;
 };
 
+void define_bullet_struct_in_lua(lua_State *L);
 Bullet make_bullet(Vector2 pos, const char *texpath, int hframes, int vframes, float direction_degrees, float speed, Hitbox hbox);
 void set_bullet_speed(Bullet *b, float speed, float min, float max, float delta);
 void update_bullet(Bullet *b);
 void draw_bullet(Bullet *b);
+Bullet parse_bullet_from_lua(lua_State *L);
 
 #endif // BULLET_H_

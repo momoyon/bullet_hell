@@ -3,6 +3,35 @@
 #include <bullet.h>
 #include <config.h>
 #include <engine.h>
+#include <common.h>
+#include <lualib.h>
+#include <lauxlib.h>
+
+void define_bullet_struct_in_lua(lua_State *L) {
+    if (!lua_check(L, luaL_dostring(L,
+                "Bullet = {}\n"
+                "Bullet.__index = Bullet\n"
+                "function Bullet.new(x, y, texname, hframes, vframes, min_speed, max_speed, speed, speed_dt, dir_degrees, hbox)\n"
+                "local self = setmetatable({}, Bullet)\n"
+                "self.x = x\n"
+                "self.y = y\n"
+                "self.texname = texname\n"
+                "self.hframes = hframes\n"
+                "self.vframes = vframes\n"
+                "self.min_speed = min_speed\n"
+                "self.max_speed = max_speed\n"
+                "self.speed = speed\n"
+                "self.speed_dt = speed_dt\n"
+                "self.dir_degrees = dir_degrees\n"
+                "self.hitbox = hbox\n"
+                "return self\n"
+                "end\n"
+                  ))) {
+        log_error("Failed to define Bullet struct in LUA!");
+        exit(1);
+    }
+    log_debug("Defined Bullet struct in LUA!");
+}
 
 Bullet make_bullet(Vector2 pos, const char *texpath, int hframes, int vframes, float direction_degrees, float speed, Hitbox hbox) {
 	Bullet b = {
@@ -66,7 +95,6 @@ void update_bullet(Bullet *b) {
 }
 
 void draw_bullet(Bullet *b) {
-
     b->spr.tint.a = 255;
     if (b->spawning) b->spr.tint.a = mapf(b->spr.scale.x, 2.f, b->spawn_scale, 0, 255);
     if (b->dying)    b->spr.tint.a = mapf(b->spr.scale.x, b->spawn_scale, b->dead_scale, 0, 255);
@@ -76,4 +104,58 @@ void draw_bullet(Bullet *b) {
     if (DEBUG_DRAW) {
         draw_hitbox_offsetted(&b->hitbox, b->pos);
     }
+}
+
+Bullet parse_bullet_from_lua(lua_State *L) {
+    // log_debug("BEGIN PARSING BULLET FROM LUA: %d", lua_gettop(L));
+
+    lua_getfield(L, -1, "x");
+    float x = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "y");
+    float y = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "texname");
+    const char *texname = lua_tostring(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "hframes");
+    int hframes = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "vframes");
+    int vframes = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "min_speed");
+    float min_speed = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "max_speed");
+    float max_speed = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "speed");
+    float speed = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "speed_dt");
+    float speed_dt = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "dir_degrees");
+    float dir_degrees = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "hitbox");
+    Hitbox hbox = hitbox_from_lua(L);
+    lua_pop(L, 1);
+
+    Bullet b = make_bullet(v2(x, y), arena_alloc_str(str_arena, TEXTURE_PATH"%s", texname), hframes, vframes, dir_degrees, speed, hbox);
+    set_bullet_speed(&b, speed, min_speed, max_speed, speed_dt);
+
+    // log_debug("END PARSING BULLET FROM LUA: %d", lua_gettop(L));
+    return b;
 }
