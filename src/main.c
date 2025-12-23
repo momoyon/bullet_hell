@@ -134,7 +134,7 @@ int main(void) {
 
     refresh_hitboxes_script(L);
 
-    luaL_dofile(L, SCRIPT_PATH"test.lua");
+    luaL_dofile(L, SCRIPT_PATH"preload.lua");
 
 	ren_tex = init_window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SCALE, "Bullet Hell", &WIDTH, &HEIGHT);
 	SetTargetFPS(60);
@@ -247,6 +247,7 @@ int main(void) {
         Vector2 m = get_mpos_scaled(SCREEN_SCALE);
 
 		// Input
+        if (IsKeyPressed(KEY_F1)) CHANGE_STATE(STATE_NORMAL);
 		if (IsKeyPressed(KEY_GRAVE)) DEBUG_DRAW = !DEBUG_DRAW;
         if (IsKeyPressed(KEY_TAB)) {
             int next = current_state + 1;
@@ -273,7 +274,7 @@ int main(void) {
                     em.pos = m;
                     update_bullet_emitter(&em);
                 }
-
+;
                 /// @DEBUG
                 if (IsKeyPressed(KEY_E)) {
                     Hitbox hbox = {0};
@@ -282,6 +283,15 @@ int main(void) {
                     Entity e = make_entity(m, TEXTURE_PATH"spawnite.png", 1, 1, 200.f, hbox);
 
                     darr_append(enemies, e);
+                }
+
+                // Reload lua script
+                if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_R)) {
+                    if (!lua_check(L, luaL_dofile(L, SCRIPT_PATH"reload.lua"))) {
+                        log_error("%s", "Failed to reload!");
+                    } else {
+                        log_debug("%s", "Reloaded succesfully!");
+                    }
                 }
 
             } break;
