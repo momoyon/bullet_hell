@@ -11,10 +11,14 @@ void define_bullet_struct_in_lua(lua_State *L) {
     if (!lua_check(L, luaL_dostring(L,
                 "Bullet = {}\n"
                 "Bullet.__index = Bullet\n"
-                "function Bullet.new(x, y, texname, hframes, vframes, min_speed, max_speed, speed, speed_dt, dir_degrees, hbox)\n"
+                "function Bullet.new(x, y, tex_offset_x, tex_offset_y, tex_w, tex_h, hframes, vframes, min_speed, max_speed, speed, speed_dt, dir_degrees, hbox)\n"
                 "local self = setmetatable({}, Bullet)\n"
                 "self.x = x\n"
                 "self.y = y\n"
+                "self.tex_offset_x = tex_offset_x\n"
+                "self.tex_offset_y = tex_offset_y\n"
+                "self.tex_w = tex_w\n"
+                "self.tex_h = tex_h\n"
                 "self.texname = texname\n"
                 "self.hframes = hframes\n"
                 "self.vframes = vframes\n"
@@ -33,7 +37,7 @@ void define_bullet_struct_in_lua(lua_State *L) {
     log_debug("Defined Bullet struct in LUA!");
 }
 
-Bullet make_bullet(Vector2 pos, const char *texpath, int hframes, int vframes, float direction_degrees, float speed, Hitbox hbox) {
+Bullet make_bullet(Vector2 pos, Vector2i tex_offset, Vector2i tex_size, int hframes, int vframes, float direction_degrees, float speed, Hitbox hbox) {
 	Bullet b = {
 		.pos = pos,
 		.dir = v2_from_degrees(direction_degrees),
@@ -46,8 +50,8 @@ Bullet make_bullet(Vector2 pos, const char *texpath, int hframes, int vframes, f
         .anim_speed = 4.f,
 	};
 
-	ASSERT(load_texture(&tm, texpath, &b.tex), "Texture fail");
-    ASSERT(init_sprite(&b.spr, b.tex, hframes, vframes), "SPRITE INIT FAILURE");
+	ASSERT(load_texture(&tm, lua_getstring(L, "BULLET_SHEET_TEXPATH"), &b.tex), "Bullet Sheet Texture fail");
+    ASSERT(init_sprite_from_sheet(&b.spr, b.tex, tex_offset, tex_size, hframes, vframes), "SPRITE INIT FAILURE");
     center_sprite_origin(&b.spr);
     set_sprite_scale_scalar(&b.spr, 2.f);
 
@@ -153,7 +157,23 @@ Bullet parse_bullet_from_lua(lua_State *L) {
     Hitbox hbox = hitbox_from_lua(L);
     lua_pop(L, 1);
 
-    Bullet b = make_bullet(v2(x, y), arena_alloc_str(str_arena, "%s%s", lua_getstring(L, "TEXTURE_PATH"), texname), hframes, vframes, dir_degrees, speed, hbox);
+    lua_getfield(L, -1, "tex_offset_x");
+    float tex_x = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "tex_offset_y");
+    float tex_y = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "tex_w");
+    float tex_w = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    lua_getfield(L, -1, "tex_h");
+    float tex_h = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    Bullet b = make_bullet(v2(x, y), v2i(tex_x, tex_y), v2i(tex_w, tex_h), hframes, vframes, dir_degrees, speed, hbox);
     set_bullet_speed(&b, speed, min_speed, max_speed, speed_dt);
 
     // log_debug("END PARSING BULLET FROM LUA: %d", lua_gettop(L));

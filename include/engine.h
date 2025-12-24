@@ -41,6 +41,8 @@ typedef struct {
 } Vector2i;
 
 Vector2i v2vi(Vector2 v);
+Vector2i v2i(int x, int y);
+Vector2i v2ixx(int x);
 bool v2i_equal(Vector2i a, Vector2i b);
 
 // NOTE: Sprite
@@ -51,6 +53,7 @@ typedef struct Sprite Sprite;
 struct Sprite {
 	Texture2D texture;
 	Rectangle tex_rect;
+    Vector2i tex_offset;
 	Vector2 pos;
 	float width, height;
 	float rotation;
@@ -65,6 +68,7 @@ struct Sprite {
 };
 
 bool init_sprite(Sprite* spr, Texture tex, size_t hframes, size_t vframes);
+bool init_sprite_from_sheet(Sprite *spr, Texture tex, Vector2i offset, Vector2i size, size_t hframes, size_t vframes);
 void update_sprite_tex_rect(Sprite *spr);
 void set_sprite_hframe(Sprite* spr, size_t hframe);
 void set_sprite_vframe(Sprite* spr, size_t vframe);
@@ -445,6 +449,9 @@ float v2_radians(Vector2 v) {
 
 // Vector2i
 Vector2i v2vi(Vector2 v) { return CLITERAL(Vector2i) { (int)v.x, (int)v.y }; }
+
+Vector2i v2i(int x, int y) { return (Vector2i) { .x = x, .y = y }; }
+Vector2i v2ixx(int x)      { return v2i(x, x); }
 
 bool v2i_equal(Vector2i a, Vector2i b) {
 	return a.x == b.x && a.y == b.y;
@@ -1283,8 +1290,28 @@ bool init_sprite(Sprite* spr, Texture2D texture, size_t hframes, size_t vframes)
 	spr->scale = (Vector2) {1.f, 1.f};
 	spr->tex_rect.width = spr->width / (float)spr->hframes;
 	spr->tex_rect.height = spr->height / (float)spr->vframes;
-	set_sprite_hframe(spr, 1);
-	set_sprite_vframe(spr, 0);
+	set_sprite_hframe(spr, hframes);
+	set_sprite_vframe(spr, vframes);
+	spr->tint = WHITE;
+
+	spr->time_per_frame = SPRITE_DEFAULT_TIME_PER_FRAME;
+	spr->accumulated_time = 0.f;
+	return true;
+}
+
+bool init_sprite_from_sheet(Sprite *spr, Texture tex, Vector2i offset, Vector2i size, size_t hframes, size_t vframes) {
+	spr->texture = tex;
+	spr->hframes = hframes;
+	spr->vframes = vframes;
+    spr->tex_offset = offset;
+	spr->pos = (Vector2) {0.f, 0.f};
+	spr->width  = (float)size.x;
+	spr->height = (float)size.y;
+	spr->scale = (Vector2) {1.f, 1.f};
+	spr->tex_rect.width  = spr->width;
+	spr->tex_rect.height = spr->height;
+	set_sprite_hframe(spr, hframes);
+	set_sprite_vframe(spr, vframes);
 	spr->tint = WHITE;
 
 	spr->time_per_frame = SPRITE_DEFAULT_TIME_PER_FRAME;
@@ -1294,9 +1321,9 @@ bool init_sprite(Sprite* spr, Texture2D texture, size_t hframes, size_t vframes)
 
 void update_sprite_tex_rect(Sprite *spr) {
 	spr->tex_rect = (Rectangle) {
-		.x = spr->tex_rect.width * (float)spr->hframe,
-		.y = spr->tex_rect.height * (float)spr->vframe,
-		.width =	spr->tex_rect.width,
+		.x = spr->tex_offset.x + (spr->tex_rect.width * (float)spr->hframe),
+		.y = spr->tex_offset.y + (spr->tex_rect.height * (float)spr->vframe),
+		.width  = spr->tex_rect.width,
 		.height = spr->tex_rect.height,
 	};
 }

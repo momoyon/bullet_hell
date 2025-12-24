@@ -68,7 +68,8 @@ void control_entity(Entity *e, Control controls) {
 
         if (on_action_held(&controls, ACTION_FIRE) && on_alarm(&e->fire_alarm, modified_delta)) {
             Vector2 spawn_pos = v2(e->pos.x, e->pos.y - e->spr.height * 0.5);
-            Bullet shot = make_bullet(spawn_pos, arena_alloc_str(str_arena, "%s%s", lua_getstring(L, "TEXTURE_PATH"), "rumia_shot.png"), 1, 1, 270+randomf(-1, 1), lua_getfloat(L, "RUMIA_SHOT_SPEED"), e->shot_hitbox);
+            Bullet shot = make_bullet(spawn_pos, v2i(160, 0), v2i(16, 48), 1, 1, 270+randomf(-1, 1), lua_getfloat(L, "RUMIA_SHOT_SPEED"), e->shot_hitbox);
+            shot.spr.time_per_frame = 0.05f;
             darr_append((*e->shots_ptr), shot);
         }
 	}

@@ -34,7 +34,7 @@ struct Bullets {
 };
 
 void define_bullet_struct_in_lua(lua_State *L);
-Bullet make_bullet(Vector2 pos, const char *texpath, int hframes, int vframes, float direction_degrees, float speed, Hitbox hbox);
+Bullet make_bullet(Vector2 pos, Vector2i tex_offset, Vector2i tex_size, int hframes, int vframes, float direction_degrees, float speed, Hitbox hbox);
 void set_bullet_speed(Bullet *b, float speed, float min, float max, float delta);
 void update_bullet(Bullet *b);
 void draw_bullet(Bullet *b);
