@@ -12,14 +12,15 @@
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
-// NOTE: @TEMP #define ENGINE_IMPLEMENTATION
-
 // NOTE: Mouse
 static bool __eng_ignore_mouse_input = false;
 Vector2 get_mpos_scaled(float scl);
 bool mouse_button_pressed(int btn);
 bool mouse_button_down(int btn);
 bool mouse_button_released(int btn);
+bool mouse_button_pressed_unignored(int btn);
+bool mouse_button_down_unignored(int btn);
+bool mouse_button_released_unignored(int btn);
 void ignore_mouse_input(bool ignore);
 
 // Vector helpers
@@ -125,6 +126,8 @@ typedef enum {
 	UI_DRAW_ELEMENT_TYPE_COUNT,
 } UI_Draw_element_type;
 
+const char *UI_Draw_element_type_as_str(const UI_Draw_element_type t);
+
 struct UI_Draw_element {
 	UI_Draw_element_type type;
 	Vector2 pos;
@@ -208,6 +211,7 @@ void UI_text_input(UI* this, char* text_buff, uint32 text_buff_size, uint32* cur
 void UI_background(UI* this);
 // @NOTE: We are defering drawing because we need to call UI funcs before any input handling for the frame is happened,
 // if we want input ignoring. We just push draw info to a stack when the UI funcs are called and draw all of them at once on UI_draw().
+// @NOTE: @IMPORTANT: IT IS A MUST TO CALL THIS BEFORE UI_end()!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 void UI_draw(UI* this);
 // @NOTE: Must be in called input handling for the frame. ***
 void UI_end(UI* this);
@@ -422,6 +426,18 @@ bool mouse_button_released(int btn) {
     return IsMouseButtonReleased(btn);
 }
 
+bool mouse_button_pressed_unignored(int btn) {
+    return IsMouseButtonPressed(btn);
+}
+
+bool mouse_button_down_unignored(int btn) {
+    return IsMouseButtonDown(btn);
+}
+
+bool mouse_button_released_unignored(int btn) {
+    return IsMouseButtonReleased(btn);
+}
+
 void ignore_mouse_input(bool ignore) {
     __eng_ignore_mouse_input = ignore;
 }
@@ -540,7 +556,7 @@ void set_ui_theme_titlebar_font_size(UI_Theme* theme, int font_size) {
 }
 
 UI UI_make(UI_Theme theme, Font* font, Vector2 pos, cstr title, Vector2* mpos_ptr) {
-	UI res;
+	UI res = {0};
 	res.active_id = -1;
 	res.layouts_count = 0;
 	res.pos = pos;
@@ -596,6 +612,18 @@ void UI_end_layout(UI* this) {
 	}
     push_ui_widget(this, parent, child.size);
 	/* UI_Layout_push_widget(parent, child.size); */
+}
+
+const char *UI_Draw_element_type_as_str(const UI_Draw_element_type t) {
+	switch (t) {
+        case UI_DRAW_ELEMENT_TYPE_RECT: return "Rect";
+        case UI_DRAW_ELEMENT_TYPE_BOX: return "Box";
+        case UI_DRAW_ELEMENT_TYPE_SPRITE: return "Sprite";
+        case UI_DRAW_ELEMENT_TYPE_SPRITE_FRAME: return "Frame";
+        case UI_DRAW_ELEMENT_TYPE_TEXT: return "Text";
+        case UI_DRAW_ELEMENT_TYPE_COUNT:
+        default: ASSERT(false, "UNREACHABLE!");
+    }
 }
 
 UI_Draw_element_stack UI_Draw_element_stack_make(void) {
@@ -656,14 +684,14 @@ bool UI_button(UI* this, cstr text, int font_size, Color color) {
 	Vector2 mpos = *this->mpos_ptr;
 	bool hovering = CheckCollisionPointRec(mpos, rect);
 	if (this->active_id == id) {
-		if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT)) {
+		if (mouse_button_released_unignored(MOUSE_BUTTON_LEFT)) {
 			this->active_id = -1;
 			if (hovering) {
                 click = true;
 			}
 		}
 	} else {
-		if (hovering && mouse_button_pressed(MOUSE_BUTTON_LEFT)) {
+		if (hovering && mouse_button_pressed_unignored(MOUSE_BUTTON_LEFT)) {
 			this->active_id = id;
 		}
 	}
@@ -673,7 +701,7 @@ bool UI_button(UI* this, cstr text, int font_size, Color color) {
 		alpha = 0.5f;
 	}
 
-	bool is_clicked = (hovering && mouse_button_down(MOUSE_BUTTON_LEFT));
+	bool is_clicked = (hovering && mouse_button_down_unignored(MOUSE_BUTTON_LEFT));
 	if (is_clicked) {
 		alpha = 1.f;
 	}
@@ -791,14 +819,14 @@ bool UI_sprite_button(UI* this, Sprite* spr) {
 	Vector2 mpos = *this->mpos_ptr;
 	bool hovering = CheckCollisionPointRec(mpos, rect);
 	if (this->active_id == id) {
-		if (mouse_button_released(MOUSE_BUTTON_LEFT)) {
+		if (mouse_button_released_unignored(MOUSE_BUTTON_LEFT)) {
 			this->active_id = -1;
 			if (hovering) {
 	click = true;
 			}
 		}
 	} else {
-		if (hovering && mouse_button_pressed(MOUSE_BUTTON_LEFT)) {
+		if (hovering && mouse_button_pressed_unignored(MOUSE_BUTTON_LEFT)) {
 			this->active_id = id;
 		}
 	}
@@ -808,7 +836,7 @@ bool UI_sprite_button(UI* this, Sprite* spr) {
 		alpha = 0.5f;
 	}
 
-	bool is_clicked = (hovering && mouse_button_down(MOUSE_BUTTON_LEFT));
+	bool is_clicked = (hovering && mouse_button_down_unignored(MOUSE_BUTTON_LEFT));
 	if (is_clicked) {
 		alpha = 1.f;
 	}
@@ -858,14 +886,14 @@ bool UI_sprite_button_frame(UI* this, Sprite* spr, int hframe, int vframe) {
 	Vector2 mpos = *this->mpos_ptr;
 	bool hovering = CheckCollisionPointRec(mpos, rect);
 	if (this->active_id == id) {
-		if (mouse_button_released(MOUSE_BUTTON_LEFT)) {
+		if (mouse_button_released_unignored(MOUSE_BUTTON_LEFT)) {
 			this->active_id = -1;
 			if (hovering) {
 	click = true;
 			}
 		}
 	} else {
-		if (hovering && mouse_button_pressed(MOUSE_BUTTON_LEFT)) {
+		if (hovering && mouse_button_pressed_unignored(MOUSE_BUTTON_LEFT)) {
 			this->active_id = id;
 		}
 	}
@@ -875,7 +903,7 @@ bool UI_sprite_button_frame(UI* this, Sprite* spr, int hframe, int vframe) {
 		alpha = 0.5f;
 	}
 
-	bool is_clicked = (hovering && mouse_button_down(MOUSE_BUTTON_LEFT));
+	bool is_clicked = (hovering && mouse_button_down_unignored(MOUSE_BUTTON_LEFT));
 	if (is_clicked) {
 		alpha = 1.f;
 	}
@@ -1129,7 +1157,8 @@ void UI_spacing(UI* this, float spacing) {
 /* } */
 static void UI_titlebar(UI* this) {
 	Vector2 rect_pos = Vector2Subtract(this->pos, (Vector2) {this->theme.bg_padding.x, 0.f});
-	Vector2 rect_size = (Vector2) {this->bg_rect.width, this->theme.titlebar_height};
+	Vector2 rect_size = v2(this->bg_rect.width, 
+                        fmaxf(this->theme.titlebar_height, this->theme.titlebar_font_size + (2*this->theme.titlebar_padding)));
 	Rectangle titlebar = {
 			.x = rect_pos.x,
 			.y = rect_pos.y,
@@ -1140,7 +1169,7 @@ static void UI_titlebar(UI* this) {
 	DrawRectangleRec(titlebar, this->theme.titlebar_color);
 	/* DrawRectangleLinesEx(titlebar, 1.f, WHITE); */
 
-	Vector2 title_pos = {titlebar.x + this->theme.titlebar_padding, titlebar.y + this->theme.titlebar_padding};
+	Vector2 title_pos = v2(titlebar.x + this->theme.titlebar_padding, titlebar.y + this->theme.titlebar_padding);
     /* Vector2 ui_size = get_ui_size(this); */
 	DrawTextEx(*this->font, TextFormat("%s", this->title), title_pos, this->theme.titlebar_font_size, 1.f, WHITE);
 	/* DrawTextEx(*this->font, TextFormat("%s %d, %d | %d, %d", this->title, (int)this->scroll_offset.x, (int)this->scroll_offset.y, (int)ui_size.x, (int)ui_size.y), title_pos, this->theme.titlebar_font_size, 1.f, WHITE); */
@@ -1153,8 +1182,7 @@ void UI_background(UI* this) {
 }
 
 void UI_draw(UI* this) {
-    UI_titlebar(this);
-    if (!this->show) {
+    UI_titlebar(this); if (!this->show) {
         // @NOTE: Clean up draw element stack
         this->draw_element_stack.count = 0;
         return;
@@ -1204,7 +1232,7 @@ void UI_draw(UI* this) {
 	}
     EndScissorMode();
     // @TEMP
-    /* DrawCircleV(this->pos, 16.f, RED); */
+    // DrawCircleV(this->pos, 16.f, RED);
 }
 
 void UI_end(UI* this) {
@@ -1231,12 +1259,12 @@ void UI_end(UI* this) {
 			.width = title_size.x,
 			.height = title_size.y,
 	};
-	if (!mouse_button_down(MOUSE_BUTTON_LEFT)) {
+	if (!mouse_button_down_unignored(MOUSE_BUTTON_LEFT)) {
 		this->is_moving = false;
 	}
 
 	Vector2 mpos = *this->mpos_ptr;
-	if (mouse_button_pressed(MOUSE_BUTTON_LEFT) &&
+	if (mouse_button_pressed_unignored(MOUSE_BUTTON_LEFT) &&
 			CheckCollisionPointRec(mpos, titlebar)) {
 		/* this->pos_offset = Vector2Subtract(Vector2Subtract(mpos, title_pos), (Vector2) {this->theme.bg_padding.x, 0.f}); */
 		this->pos_offset = Vector2Subtract(mpos, title_pos);
@@ -1247,29 +1275,26 @@ void UI_end(UI* this) {
         ignore_mouse_input(true);
         this->pos = Vector2Subtract(mpos, this->pos_offset);
 	} else {
-        if (mouse_button_pressed(MOUSE_BUTTON_MIDDLE) &&
+        if (mouse_button_pressed_unignored(MOUSE_BUTTON_MIDDLE) &&
 			CheckCollisionPointRec(mpos, titlebar)) {
             this->show = !this->show;
         }
     }
 
 	// eat mouse input if clicked on ui rect
-	if (this->show) {
-	    Vector2 pos =  get_ui_bg_rect_pos(this);
-	    Vector2 size = { this->bg_rect.width, this->bg_rect.height };
+    Vector2 size = { this->bg_rect.width, this->bg_rect.height };
 
-		 Rectangle rect = {
-            pos.x,
-            pos.y,
-            size.x,
-            size.y
-		 };
+     Rectangle rect = {
+        pos.x,
+        pos.y,
+        size.x,
+        size.y
+     };
 
-		 if (mouse_button_down(MOUSE_BUTTON_LEFT) &&
-				 CheckCollisionPointRec(mpos, rect)) {
-             ignore_mouse_input(true);
-		 }
-	 }
+     if ((mouse_button_down_unignored(MOUSE_BUTTON_LEFT) || mouse_button_down_unignored(MOUSE_BUTTON_MIDDLE) || mouse_button_down_unignored(MOUSE_BUTTON_RIGHT))&&
+         (CheckCollisionPointRec(mpos, rect) || CheckCollisionPointRec(mpos, titlebar))) {
+         ignore_mouse_input(true);
+     }
 
 	this->last_used_id = 0;
 	UI_pop_layout(this);
