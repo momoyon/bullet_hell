@@ -311,9 +311,7 @@ int main(void) {
     /// Lua Vars
     int H=GLOBAL_FS+2;
     Textbox lua_script_tbox = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-GLOBAL_FS-P-(0*H)), v2(200, H), 1024, "Lua Script", ' ');
-    set_textbox_keys(&lua_script_tbox, KEY_SPACE, KEY_SPACE);
     Textbox lua_func_tbox   = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-GLOBAL_FS-P-(1*H)), v2(200, H), 1024, "Lua Func", 'f');
-    set_textbox_keys(&lua_func_tbox, KEY_F, KEY_F);
 
     /// Edit Vars
     Edit_state edstate = EDSTATE_HITBOX;
@@ -403,6 +401,25 @@ int main(void) {
                     }
                 } break;
                 case STATE_LUA: {
+                    UI_text(&ui, "LUA", font_size, YELLOW);
+                    UI_line(&ui, 2, WHITE);
+
+                    if (UI_textbox(&ui, &lua_func_tbox)) {
+                        lua_func_tbox.active = false;
+
+                        log_debug("LUA FUNC: %s", lua_func_tbox.buff);
+                    } 
+
+                    if (UI_textbox(&ui, &lua_script_tbox)) {
+                        lua_script_tbox.active = false;
+
+                        const char *actual_lua_scriptpath = arena_alloc_str(str_arena, "%s%s", lua_getstring(L, "SCRIPT_PATH"), lua_script_tbox.buff);
+                        if (!lua_check(L, luaL_dofile(L, actual_lua_scriptpath))) {
+                            log_error("Failed to do file %s", actual_lua_scriptpath);
+                        } else {
+                            log_debug("Done file %s", actual_lua_scriptpath);
+                        }
+                    }
                 } break;
                 case STATE_COUNT:
                 default: ASSERT(false, "UNREACHABLE!");
@@ -670,24 +687,6 @@ int main(void) {
                 }
             } break;
             case STATE_LUA: {
-                if (update_textbox(&lua_func_tbox)) {
-                    if (input_to_textbox(&lua_func_tbox)) {
-                        lua_func_tbox.active = false;
-
-                        log_debug("LUA FUNC: %s", lua_func_tbox.buff);
-                    }
-                } else if (update_textbox(&lua_script_tbox)) {
-                    if (input_to_textbox(&lua_script_tbox)) {
-                        lua_script_tbox.active = false;
-
-                        const char *actual_lua_scriptpath = arena_alloc_str(str_arena, "%s%s", lua_getstring(L, "SCRIPT_PATH"), lua_script_tbox.buff);
-                        if (!lua_check(L, luaL_dofile(L, actual_lua_scriptpath))) {
-                            log_error("Failed to do file %s", actual_lua_scriptpath);
-                        } else {
-                            log_debug("Done file %s", actual_lua_scriptpath);
-                        }
-                    }
-                }
             } break;
             case STATE_COUNT:
             default: ASSERT(false, "UNREACHABLE!");
@@ -768,10 +767,10 @@ int main(void) {
                                                           editing_hitbox_texture.height), 
                                           v2_add(editing_hitbox_screen_pos, v2(0, -2*fs)), fs, TEXT_ALIGN_V_BOTTOM, TEXT_ALIGN_H_LEFT, YELLOW);
 
-                        for (int i = 0; i < ARRAY_LEN(editing_textboxes); ++i) {
-                            Textbox *tbox = &editing_textboxes[i];
-                            draw_textbox(tbox);
-                        }
+                        // for (int i = 0; i < ARRAY_LEN(editing_textboxes); ++i) {
+                        //     Textbox *tbox = &editing_textboxes[i];
+                        //     draw_textbox(tbox);
+                        // }
                     } break;
                     case EDSTATE_SPAWNERS: {
                     } break;
@@ -780,8 +779,6 @@ int main(void) {
                 }
             } break;
             case STATE_LUA: {
-                draw_textbox(&lua_script_tbox);
-                draw_textbox(&lua_func_tbox);
             } break;
             case STATE_COUNT:
             default: ASSERT(false, "UNREACHABLE!");

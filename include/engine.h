@@ -100,6 +100,37 @@ struct Alarm {
 
 bool on_alarm(Alarm *a, float dt);
 
+// NOTE: TextBox
+typedef struct Textbox Textbox;
+
+struct Textbox {
+		char *buff;
+		size_t buff_size;
+		int cursor;
+		const char *name;
+		Font font;
+		Vector2 pos;
+		int font_size;
+		Color active_color;
+		Color inactive_color;
+		bool active;
+		Vector2 size;
+		bool ignoring_input;
+
+		int activate_key;
+		int deactivate_key;
+		char ignore_char;
+};
+
+Textbox make_textbox(Font font, int fs, Color active_color, Color inactive_color, Vector2 pos, Vector2 size, size_t buff_size, const char *name, char ignore_char);
+void free_textbox(Textbox *tbox);
+bool update_textbox(Textbox *tbox);
+bool input_to_textbox(Textbox *tbox);
+void set_textbox_keys(Textbox *tbox, int activate, int deactivate);
+Rectangle get_textbox_rect(Textbox *tbox);
+void draw_textbox(Textbox *tbox);
+
+
 // NOTE: UI
 typedef struct UI UI;
 typedef struct UI_Theme UI_Theme;
@@ -126,6 +157,7 @@ typedef enum {
 	UI_DRAW_ELEMENT_TYPE_SPRITE_FRAME,
 	UI_DRAW_ELEMENT_TYPE_TEXT,
 	UI_DRAW_ELEMENT_TYPE_LINE,
+	UI_DRAW_ELEMENT_TYPE_TEXTBOX,
 	UI_DRAW_ELEMENT_TYPE_COUNT,
 } UI_Draw_element_type;
 
@@ -143,6 +175,7 @@ struct UI_Draw_element {
 	cstr text;
 	int font_size;
     float thick;
+    Textbox *tbox;
 };
 
 typedef struct {
@@ -194,6 +227,7 @@ struct UI {
     UI_Theme theme;
     Vector2* mpos_ptr;
     Vector2 scroll_offset;
+    Textbox tbox;
 };
 
 UI UI_make(UI_Theme theme, Font* font, Vector2 pos, cstr title, Vector2* mpos_ptr);
@@ -212,7 +246,7 @@ void UI_spacing(UI* this, float spacing);
 void UI_sprite(UI* this, Sprite* spr);
 bool UI_sprite_button(UI* this, Sprite* spr);
 bool UI_sprite_button_frame(UI* this, Sprite* spr, int hframe, int vframe);
-void UI_text_input(UI* this, char* text_buff, uint32 text_buff_size, uint32* cursor, int font_size, Color color);
+bool UI_textbox(UI* this, Textbox *tbox);
 void UI_background(UI* this);
 // @NOTE: We are defering drawing because we need to call UI funcs before any input handling for the frame is happened,
 // if we want input ignoring. We just push draw info to a stack when the UI funcs are called and draw all of them at once on UI_draw().
@@ -220,35 +254,6 @@ void UI_background(UI* this);
 void UI_draw(UI* this);
 // @NOTE: Must be in called input handling for the frame. ***
 void UI_end(UI* this);
-
-// NOTE: TextBox
-typedef struct Textbox Textbox;
-
-struct Textbox {
-		char *buff;
-		size_t buff_size;
-		int cursor;
-		const char *name;
-		Font font;
-		Vector2 pos;
-		int font_size;
-		Color active_color;
-		Color inactive_color;
-		bool active;
-		Vector2 size;
-		bool ignoring_input;
-
-		int activate_key;
-		int deactivate_key;
-		char ignore_char;
-};
-
-Textbox make_textbox(Font font, int fs, Color active_color, Color inactive_color, Vector2 pos, Vector2 size, size_t buff_size, const char *name, char ignore_char);
-void free_textbox(Textbox *tbox);
-bool update_textbox(Textbox *tbox);
-bool input_to_textbox(Textbox *tbox);
-void set_textbox_keys(Textbox *tbox, int activate, int deactivate);
-void draw_textbox(Textbox *tbox);
 
 // NOTE: Rectangle
 bool rect_contains_point(Rectangle r1, Vector2 p);
@@ -627,6 +632,7 @@ const char *UI_Draw_element_type_as_str(const UI_Draw_element_type t) {
         case UI_DRAW_ELEMENT_TYPE_SPRITE_FRAME: return "Frame";
         case UI_DRAW_ELEMENT_TYPE_TEXT: return "Text";
         case UI_DRAW_ELEMENT_TYPE_LINE: return "Line";
+        case UI_DRAW_ELEMENT_TYPE_TEXTBOX: return "Text Box";
         case UI_DRAW_ELEMENT_TYPE_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -989,203 +995,42 @@ void UI_spacing(UI* this, float spacing) {
 	/* UI_Layout_push_widget(top, size); */
 }
 
-/* void UI_text_input(UI* this, char* text_buff, uint32 text_buff_size, uint32* cursor_ptr, int font_size, Color color) { */
-/*	 uint32 cursor = (*cursor_ptr); */
-/*	 int id = this->last_used_id++; */
-/*	 UI_Layout* top = UI_top_layout(this); */
-/*	 if (top == NULL) { */
-/*		 log_error("This function must be used between 'begin' and 'end'!"); */
-/*		 return; */
-/*	 } */
+bool UI_textbox(UI* this, Textbox *tbox) {
+	UI_Layout* top = UI_top_layout(this);
+	if (top == NULL) {
+		log_error("This function must be used between 'begin' and 'end'!");
+		return false;
+	}
 
-/*	 const Vector2 pos = UI_Layout_available_pos(top); */
-/*	 // TODO: maybe have text input padding? */
-/*	 const Vector2 size = Vector2Add((Vector2) {this->text_input_width * (float32)font_size, (float32)font_size}, Vector2Scale(this->btn_padding, 2.f)); */
-/*	 const Rectangle rect = { */
-/*			 .x = pos.x, */
-/*			 .y = pos.y, */
-/*			 .width = size.x, */
-/*			 .height = size.y, */
-/*	 }; */
-/*   Vector2 mpos = *this->mpos_ptr; */
-/*	 bool hovering = CheckCollisionPointRec(mpos, rect); */
-/*	 if (this->active_id == id) { */
-/*		 bool pressed = false; */
+	const Vector2 pos = UI_Layout_available_pos(top);
+    const Vector2 size = tbox->size;
+    tbox->pos = pos;
 
-/*		 // Backspace */
-/*		 if (clock_key_pressed(ctx, KEY_BACKSPACE) && cursor > 0) { */
-/*			 uint32 n = text_buff_size - cursor; */
-/*			 if (n == 0) { */
-/* 	text_buff[--cursor] = '\0'; */
-/*			 } else { */
-/* 	memcpy((uint8*)text_buff+(cursor-1), (uint8*)text_buff+cursor, n); */
-/* 	cursor--; */
-/* 	// Edge case: text buffer is full, cursor is not at the end of text buffer */
-/* 	if (text_buff[text_buff_size-1] != '\0') { */
-/* 		memset((uint8*)text_buff+cursor+n, 0, text_buff_size - (cursor + n)); */
-/* 	} */
-/*			 } */
-/*			 pressed = true; */
-/*		 } */
 
-/*		 // Delete */
-/*		 if (clock_key_pressed(ctx, KEY_DELETE) && */
-/* 	cursor < (uint32)strlen(text_buff)) { */
-/*			 uint32 n = text_buff_size - cursor; */
+    Vector2 mpos = *this->mpos_ptr;
+    Rectangle tbox_rect = get_textbox_rect(tbox);
 
-/*			 if (n == 0) { */
-/* 	text_buff[cursor--] = '\0'; */
-/*			 } else { */
-/* 	memcpy((uint8*)text_buff+(cursor), (uint8*)text_buff+(cursor+1), n-1); */
-/* 	// TODO: Check for edge-case */
-/*			 } */
-/*			 pressed = true; */
-/*		 } */
+    // Activate on click
+    if (CheckCollisionPointRec(mpos, tbox_rect)) {
+        if (mouse_button_pressed_unignored(MOUSE_BUTTON_LEFT)) tbox->active = !tbox->active;
+    }
 
-/*		 // enter */
-/*		 if (clock_key_pressed(ctx, KEY_ENTER)) { */
-/*			 if (clock_key_held(ctx, KEY_LEFT_CONTROL)) { */
-/* 	this->active_id = -1; */
-/*			 } else { */
-/* 	/\* 	text_buff[cursor] = '\n'; *\/ */
-/* 	/\* 	cursor++; *\/ */
-/*			 } */
-/*			 pressed = true; */
-/*		 } */
+	UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) {
+			.type = UI_DRAW_ELEMENT_TYPE_TEXTBOX,
+            .tbox = tbox,
+		});
 
-/*		 if (ctx->text_entered) { */
-/*			 text_buff[cursor] = (char)ctx->last_entered_character; */
-/*			 cursor++; */
-/*			 pressed = true; */
-/*		 } */
+    push_ui_widget(this, top, size);
 
-/*		 // Pasting */
-/*		 if (clock_key_held(ctx, KEY_LEFT_CONTROL)) { */
-/*			 if (clock_key_pressed(ctx, KEY_V)) { */
-/* 	cstr pasted_text = get_clipboard(); */
-/* 	size_t pasted_text_len = strlen(pasted_text); */
-/* 	ASSERT((pasted_text_len + cursor) <= text_buff_size); */
-/* 	memcpy((uint8*)text_buff+cursor, pasted_text, pasted_text_len); */
-/* 	cursor += (uint32)pasted_text_len; */
-/*			 } */
-/*			 pressed = true; */
-/*		 } */
+    update_textbox(tbox);
 
-/*		 // Home/End */
-/*		 if (clock_key_pressed(ctx, KEY_HOME)) { */
-/*			 cursor = 0; */
-/*			 pressed = true; */
-/*		 } else if (clock_key_pressed(ctx, KEY_END)) { */
-/*			 cursor = (uint32)strlen(text_buff); */
-/*			 pressed = true; */
-/*		 } */
+    if (tbox->active) {
+        return input_to_textbox(tbox);
+    }
 
-/*		 // Cursor movement */
-/*		 if (clock_key_pressed(ctx, KEY_LEFT)) { */
-/*			 if (cursor > 0) cursor--; */
-/*			 pressed = true; */
-/*		 } */
+    return false;
+}
 
-/*		 if (clock_key_pressed(ctx, KEY_RIGHT)) { */
-/*			 size_t text_len = strlen(text_buff); */
-/*			 if (cursor < text_len) cursor++; */
-/*			 pressed = true; */
-/*		 } */
-
-/*		 clock_eat_key_input(ctx); */
-
-/*		 if (!hovering && clock_mouse_released(ctx, MOUSE_BUTTON_LEFT)) { */
-/*			 this->active_id = -1; */
-/*		 } */
-
-/*		 if (!pressed) { */
-/*			 if (Alarm_on_alarm(&this->text_input_cursor_blink_alarm, ctx->delta)) { */
-/* 	this->show_text_input_cursor = !this->show_text_input_cursor; */
-/*			 } */
-/*		 } else { */
-/*			 this->text_input_cursor_blink_alarm.time = 0.f; */
-/*			 this->show_text_input_cursor = true; */
-/*		 } */
-
-/*	 } else { */
-/*		 this->show_text_input_cursor = true; */
-/*		 if (hovering && mouse_button_pressed(ctx, MOUSE_BUTTON_LEFT)) { */
-/*			 this->active_id = id; */
-/*			 clock_eat_mouse_input(ctx); */
-/*		 } */
-/*	 } */
-
-/*	 Color fill_col = color_alpha(WHITE, this->active_id == id ? 0.2f : 0.f); */
-/*	 Vector2 text_box_pos = pos; */
-/*	 /\* draw_box(ctx, rect, WHITE, fill_col); *\/ */
-/*	 UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) { */
-/*			 .type = UI_DRAW_ELEMENT_TYPE_BOX, */
-/*			 .pos = rect.pos, */
-/*			 .size = rect.size, */
-/*			 .fill_color = fill_col, */
-/*			 .out_color = WHITE, */
-/*			 .spr = NULL, */
-/*			 .font = NULL, */
-/*			 .text = NULL, */
-/*			 .font_size = 0, */
-/*		 }); */
-
-/*	 // TODO: look previous todo... */
-/*	 Vector2 text_pos = Vector2Add(pos, this->btn_padding); */
-/*	 float text_width = get_text_size(this->ctx, this->font, text_buff, font_size).x; */
-/*	 float text_box_width = ((float32)this->text_input_width * (float32)font_size); */
-/*	 if (text_width > text_box_width) { */
-/*		 text_pos.x -= text_width - text_box_width; */
-/*	 } */
-
-/*	 // offset by cursor */
-/*	 ASSERT(cursor <= text_buff_size); */
-/*	 float text_width_until_cursor = get_text_sizen(this->ctx, this->font, text_buff, cursor, font_size).x; */
-/*	 Rect cursor_rect = { */
-/*		 .pos = (Vector2) {text_pos.x + text_width_until_cursor, text_pos.y}, */
-/*		 .size = (Vector2) {font_size*0.2f, (float32)font_size} */
-/*	 }; */
-
-/*	 if (cursor_rect.pos.x < text_box_pos.x) { */
-/*		 text_pos.x += text_box_pos.x - cursor_rect.pos.x; */
-/*		 cursor_rect.pos.x = text_box_pos.x; */
-/*	 } */
-
-/*	 clock_begin_scissor(ctx, rect); */
-/*	 color.a = 0.5f; */
-/*	 if (this->active_id == id) { */
-/*		 color.a = 1.f; */
-/*	 } */
-
-/*	 /\* draw_text(ctx, this->font, text_buff, text_pos, font_size, color); *\/ */
-/*	 UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) { */
-/*			 .type = UI_DRAW_ELEMENT_TYPE_TEXT, */
-/*			 .pos = text_pos, */
-/*			 .fill_color = color, */
-/*			 .out_color = color, */
-/*			 .spr = NULL, */
-/*			 .font = this->font, */
-/*			 .text = text_buff, */
-/*			 .font_size = font_size, */
-/*		 }); */
-
-/*	 clock_end_scissor(ctx); */
-
-/*	 // cursor */
-
-/*	 if (this->show_text_input_cursor) { */
-/*		 /\* draw_rect(ctx, cursor_rect, color_alpha(WHITE, (this->active_id == id ? 0.85f : 0.45f))); *\/ */
-/*		 UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) { */
-/*			 .type = UI_DRAW_ELEMENT_TYPE_RECT, */
-/*			 .pos = cursor_rect.pos, */
-/*			 .size = cursor_rect.size, */
-/*			 .fill_color = color_alpha(WHITE, (this->active_id == id ? 0.85f : 0.45f)), */
-/*		 }); */
-/*	 } */
-
-/*	 UI_Layout_push_widget(top, size); */
-/*	 *cursor_ptr = cursor; */
-/* } */
 static void UI_titlebar(UI* this) {
 	Vector2 rect_pos = Vector2Subtract(this->pos, (Vector2) {this->theme.bg_padding.x, 0.f});
 	Vector2 rect_size = v2(this->bg_rect.width, 
@@ -1260,6 +1105,10 @@ void UI_draw(UI* this) {
             case UI_DRAW_ELEMENT_TYPE_LINE: {
                 Vector2 pos2 = v2(this->ui_rect.x + this->ui_rect.width, elm.pos.y);
                 DrawLineEx(elm.pos, pos2, elm.thick, elm.out_color);
+            } break;
+            case UI_DRAW_ELEMENT_TYPE_TEXTBOX: {
+                ASSERT(elm.tbox, ".tbox must be set for UI_DRAW_ELEMENT_TYPE_TEXTBOX!!");
+                draw_textbox(elm.tbox);
             } break;
             case UI_DRAW_ELEMENT_TYPE_COUNT:
             default: ASSERT(0, "Unreachable!");
@@ -1456,32 +1305,32 @@ Textbox make_textbox(Font font, int fs, Color active_color, Color inactive_color
 }
 
 void free_textbox(Textbox *tbox) {
-		if (!tbox) return;
-		if (tbox->buff) free(tbox->buff);
+    if (!tbox) return;
+    if (tbox->buff) free(tbox->buff);
 }
 
 bool update_textbox(Textbox *tbox) {
-		if (tbox->active) {
-				if (IsKeyDown(KEY_LEFT_ALT) && IsKeyPressed(tbox->deactivate_key)) {
-						tbox->active = false;
-						tbox->ignoring_input = true;
-				}
-		} else {
-				if (IsKeyPressed(tbox->activate_key)) {
-						tbox->active = true;
-				}
-		}
+    if (tbox->active) {
+        if ((IsKeyDown(KEY_LEFT_ALT) && IsKeyPressed(tbox->deactivate_key)) || IsKeyPressed(KEY_ESCAPE)) {
+            tbox->active = false;
+            tbox->ignoring_input = true;
+        }
+    } else {
+        if (IsKeyPressed(tbox->activate_key)) {
+            tbox->active = true;
+        }
+    }
 
-		return tbox->active;
+    return tbox->active;
 }
 
 bool input_to_textbox(Textbox *tbox) {
-		if (!tbox->active) return false;
-		if (input_to_buff_ignored(tbox->buff, tbox->buff_size, &tbox->cursor, tbox->ignore_char, &tbox->ignoring_input)) {
-				tbox->ignoring_input = true;
-				return true;
-		}
-		return false;
+    if (!tbox->active) return false;
+    if (input_to_buff_ignored(tbox->buff, tbox->buff_size, &tbox->cursor, tbox->ignore_char, &tbox->ignoring_input)) {
+        tbox->ignoring_input = true;
+        return true;
+    }
+    return false;
 }
 
 void set_textbox_keys(Textbox *tbox, int activate, int deactivate) {
@@ -1489,20 +1338,26 @@ void set_textbox_keys(Textbox *tbox, int activate, int deactivate) {
 		tbox->deactivate_key = deactivate;
 }
 
+Rectangle get_textbox_rect(Textbox *tbox) {
+    float buff_measured = MeasureTextEx(tbox->font, tbox->buff, tbox->font_size, 1.f).x;
+    float name_measured = MeasureTextEx(tbox->font, tbox->name, tbox->font_size, 1.f).x;
+    float measure_pad = 20.f;
+    int buff_x = tbox->pos.x + name_measured;
+    Rectangle rect = {
+        .x = buff_x + measure_pad,
+        .y = tbox->pos.y,
+        .width = fmaxf(tbox->size.x, buff_measured*1.1),
+        .height = tbox->size.y,
+    };
+
+    return rect;
+}
+
 void draw_textbox(Textbox *tbox) {
-		float buff_measured = MeasureTextEx(tbox->font, tbox->buff, tbox->font_size, 1.f).x;
-		float name_measured = MeasureTextEx(tbox->font, tbox->name, tbox->font_size, 1.f).x;
-		float measure_pad = 20.f;
-		int buff_x = tbox->pos.x + name_measured;
-		Rectangle rect = {
-				.x = buff_x + measure_pad,
-				.y = tbox->pos.y,
-				.width = fmaxf(tbox->size.x, buff_measured*1.1),
-				.height = tbox->size.y,
-		};
-		draw_text(tbox->font, tbox->name, tbox->pos, tbox->font_size, tbox->active ? tbox->active_color : tbox->inactive_color);
-		draw_text(tbox->font, tbox->buff, v2(buff_x+20+2, tbox->pos.y), tbox->font_size, tbox->active ? tbox->active_color : tbox->inactive_color);
-		DrawRectangleLinesEx(rect, 1, tbox->active ? tbox->active_color : tbox->inactive_color);
+    Rectangle rect = get_textbox_rect(tbox);
+    draw_text(tbox->font, tbox->name, tbox->pos, tbox->font_size, tbox->active ? tbox->active_color : tbox->inactive_color);
+    draw_text(tbox->font, tbox->buff, v2(rect.x+2, tbox->pos.y), tbox->font_size, tbox->active ? tbox->active_color : tbox->inactive_color);
+    DrawRectangleLinesEx(rect, 1, tbox->active ? tbox->active_color : tbox->inactive_color);
 }
 
 // Rectangle
