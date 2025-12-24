@@ -102,6 +102,8 @@ const char *state_as_str(const State state) {
 #define TEXTBOX_NAME 0
 #define TEXTBOX_FILEPATH 1
 #define TEXTBOX_TEXPATH 2
+#define TEXTBOX_TEX_OFFSET 3
+#define TEXTBOX_TEX_SIZE 4
 
 void confirm_filepath_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_texture, Textbox *editing_textboxes, Textbox *tbox) {
     (void)editing_hitbox_texture;
@@ -116,9 +118,77 @@ void confirm_filepath_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_tex
     // }
 }
 
-void confirm_texpath_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_texture, Textbox *editing_textboxes, Textbox *tbox) {
-    (void)editing_textboxes;
-    (void)editing_hitbox;
+void confirm_texoffset_tbox(Vector2i *editing_hitbox_offset, Textbox *tbox) {
+    String_view sv = SV(tbox->buff);
+
+    if (!sv_contains_char(sv, ' ')) {
+        log_error("%s is not a valid offset!: No space found", tbox->buff);
+        return;
+    }
+
+    String_view x_sv = sv_lpop_until_char(&sv, ' ');
+    sv_lremove(&sv, 1); // Remove SPACE
+
+    String_view y_sv = sv_lpop_until_char(&sv, ' ');
+    sv_lremove(&sv, 1); // Remove SPACE
+
+
+    int x_count = -1;
+    float x = sv_to_float(x_sv, &x_count);
+    if (x_count == -1) {
+        log_error("%s is not a valid offset!: Couldn't convert x to float", tbox->buff);
+        return;
+    }
+
+    int y_count = -1;
+    float y = sv_to_float(y_sv, &y_count);
+    if (y_count == -1) {
+        log_error("%s is not a valid offset!: Couldn't convert y to float", tbox->buff);
+        return;
+    }
+
+    editing_hitbox_offset->x = x;
+    editing_hitbox_offset->y = y;
+
+    log_debug("Successfully set the texture offset to %f, %f", x, y);
+}
+
+void confirm_texsize_tbox(Vector2i *size, Textbox *tbox) {
+    String_view sv = SV(tbox->buff);
+
+    if (!sv_contains_char(sv, ' ')) {
+        log_error("%s is not a valid size!: No space found", tbox->buff);
+        return;
+    }
+
+    String_view x_sv = sv_lpop_until_char(&sv, ' ');
+    sv_lremove(&sv, 1); // Remove SPACE
+
+    String_view y_sv = sv_lpop_until_char(&sv, ' ');
+    sv_lremove(&sv, 1); // Remove SPACE
+
+
+    int x_count = -1;
+    float x = sv_to_float(x_sv, &x_count);
+    if (x_count == -1) {
+        log_error("%s is not a valid size!: Couldn't convert x to float", tbox->buff);
+        return;
+    }
+
+    int y_count = -1;
+    float y = sv_to_float(y_sv, &y_count);
+    if (y_count == -1) {
+        log_error("%s is not a valid size!: Couldn't convert y to float", tbox->buff);
+        return;
+    }
+
+    size->x = x;
+    size->y = y;
+
+    log_debug("Successfully set the texture size to %f, %f", x, y);
+}
+
+void confirm_texpath_tbox(Texture2D *editing_hitbox_texture, Vector2i *tex_size, Textbox *tbox) {
     memset(editing_hitbox_texture, 0, sizeof(Texture2D));
     const char *actual_editing_hitbox_texpath = arena_alloc_str(str_arena, "%s%s", lua_getstring(L, "TEXTURE_PATH"), tbox->buff);
     if (!load_texture_(&tm, actual_editing_hitbox_texpath, editing_hitbox_texture, true)) {
@@ -126,16 +196,19 @@ void confirm_texpath_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_text
     } else {
         log_debug("Successfully loaded texture %s", actual_editing_hitbox_texpath);
     }
+
+    tex_size->x = editing_hitbox_texture->width;
+    tex_size->y = editing_hitbox_texture->height;
 }
 
-void confirm_name_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_texture, Textbox *editing_textboxes, Textbox *tbox) {
+void confirm_name_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_texture, Textbox *editing_textboxes, Textbox *tbox, Vector2i *tex_size) {
     int written = snprintf(editing_textboxes[TEXTBOX_FILEPATH].buff, editing_textboxes[TEXTBOX_FILEPATH].buff_size, "%s.hitbox", tbox->buff);
     editing_textboxes[TEXTBOX_FILEPATH].cursor = written;
     written = snprintf(editing_textboxes[TEXTBOX_TEXPATH].buff, editing_textboxes[TEXTBOX_TEXPATH].buff_size, "%s.png", tbox->buff);
     editing_textboxes[TEXTBOX_TEXPATH].cursor = written;
 
     confirm_filepath_tbox(editing_hitbox, editing_hitbox_texture, editing_textboxes, &editing_textboxes[TEXTBOX_FILEPATH]);
-    confirm_texpath_tbox(editing_hitbox, editing_hitbox_texture, editing_textboxes, &editing_textboxes[TEXTBOX_TEXPATH]);
+    confirm_texpath_tbox(editing_hitbox_texture, tex_size, &editing_textboxes[TEXTBOX_TEXPATH]);
 }
 
 int main(void) {
@@ -196,7 +269,6 @@ int main(void) {
         return 1;
     }
 
-
     Hitbox player_hitbox = {0};
     if (!load_hitbox_from_file(&player_hitbox, arena_alloc_str(str_arena, "%s%s", lua_getstring(L, "HITBOX_PATH"), "rumia_player.hitbox"))) return 1;
     Hitbox player_hitbox_bounding = {0};
@@ -246,17 +318,23 @@ int main(void) {
     Vector2 editing_hitbox_screen_pos = {WIDTH*0.5-(editing_hitbox.size.x*0.5), HEIGHT*0.5-(editing_hitbox.size.y*0.5)};
     Vector2 moving_offset = {0};
 
-    Textbox editing_textboxes[3] = {
-        [TEXTBOX_NAME] = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT*0.85+P), v2(200, GLOBAL_FS), 1024, "Hitbox Name", '1'),
-        [TEXTBOX_FILEPATH] = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT*0.85+P+2*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox Filepath", '2'),
-        [TEXTBOX_TEXPATH] = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT*0.85+P+4*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox Texpath", '3'),
+    Textbox editing_textboxes[] = {
+        [TEXTBOX_NAME]       = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P), v2(200, GLOBAL_FS), 1024, "Hitbox Name", '1'),
+        [TEXTBOX_FILEPATH]   = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P-2*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox Filepath", '2'),
+        [TEXTBOX_TEXPATH]    = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P-4*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox Texpath", '3'),
+        [TEXTBOX_TEX_OFFSET] = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P-6*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox TexOffset", '4'),
+        [TEXTBOX_TEX_SIZE]   = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P-8*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox TexSize", '5'),
     };
+
+    log_debug("ARRAY_LEN(editing_textboxes): %zu", ARRAY_LEN(editing_textboxes));
 
     for (int i = 0; i < ARRAY_LEN(editing_textboxes); ++i) {
         set_textbox_keys(&editing_textboxes[i], KEY_ONE+i, KEY_ONE+i);
     }
 
     Texture2D editing_hitbox_texture = {0};
+    Vector2i  editing_hitbox_texture_offset = {0};
+    Vector2i  editing_hitbox_texture_size = {0};
     float editing_hitbox_scale = 1;
 
     // Mouse
@@ -280,14 +358,14 @@ int main(void) {
 
         // UI
         // TODO: UI_begin or UI_end is causing segfault!
-        UI_begin(&ui, UI_LAYOUT_KIND_VERT);
-
-        if (UI_button(&ui, "Click Me!", GLOBAL_FS, GREEN)) {
-            log_debug("That tickles!");
-        }
-
-        log_debug("HER");
-        UI_end(&ui);
+        // UI_begin(&ui, UI_LAYOUT_KIND_VERT);
+        //
+        // if (UI_button(&ui, "Click Me!", GLOBAL_FS, GREEN)) {
+        //     log_debug("That tickles!");
+        // }
+        //
+        // log_debug("HER");
+        // UI_end(&ui);
 
 		// Input
         if (IsKeyPressed(KEY_F1)) CHANGE_STATE(STATE_NORMAL);
@@ -370,13 +448,19 @@ int main(void) {
                     if (input_to_textbox(tbox)) {
                         switch (i) {
                             case TEXTBOX_NAME: {
-                                confirm_name_tbox(&editing_hitbox, &editing_hitbox_texture, editing_textboxes, tbox);
+                                confirm_name_tbox(&editing_hitbox, &editing_hitbox_texture, editing_textboxes, tbox, &editing_hitbox_texture_size);
                             } break;
                             case TEXTBOX_FILEPATH: {
                                 confirm_filepath_tbox(&editing_hitbox, &editing_hitbox_texture, editing_textboxes, tbox);
                             } break;
                             case TEXTBOX_TEXPATH: {
-                                confirm_texpath_tbox(&editing_hitbox, &editing_hitbox_texture, editing_textboxes, tbox);
+                                confirm_texpath_tbox(&editing_hitbox_texture, &editing_hitbox_texture_size, tbox);
+                            } break;
+                            case TEXTBOX_TEX_OFFSET: {
+                                confirm_texoffset_tbox(&editing_hitbox_texture_offset, tbox);
+                            } break;
+                            case TEXTBOX_TEX_SIZE: {
+                                confirm_texsize_tbox(&editing_hitbox_texture_size, tbox);
                             } break;
                             default: ASSERT(false, "UNREACHABLE!");
                         }
@@ -422,11 +506,11 @@ int main(void) {
                     if (IsKeyDown(KEY_LEFT_CONTROL)) {
                         // Save
                         if (IsKeyPressed(KEY_S)) {
-                            if (save_hitbox_to_lua_script(&editing_hitbox, editing_textboxes[TEXTBOX_FILEPATH].buff, lua_getstring(L, "SCRIPT_PATH"))) {
+                            if (save_hitbox_to_lua_script(&editing_hitbox, editing_textboxes[TEXTBOX_FILEPATH].buff, lua_getstring(L, "HITBOXES_SCRIPT_PATH"))) {
                                 refresh_hitboxes_script(L);
-                                log_debug("Successfully saved hitbox %s to %s", editing_textboxes[TEXTBOX_FILEPATH].buff, lua_getstring(L, "SCRIPT_PATH"));
+                                log_debug("Successfully saved hitbox %s to %s", editing_textboxes[TEXTBOX_FILEPATH].buff, lua_getstring(L, "HITBOXES_SCRIPT_PATH"));
                             } else {
-                                log_debug("Failed to save hitbox %s to %s", editing_textboxes[TEXTBOX_FILEPATH].buff, lua_getstring(L, "SCRIPT_PATH"));
+                                log_debug("Failed to save hitbox %s to %s", editing_textboxes[TEXTBOX_FILEPATH].buff, lua_getstring(L, "HITBOXES_SCRIPT_PATH"));
                             }
                         }
                         // Load
@@ -582,7 +666,26 @@ int main(void) {
                 DrawRectangleV(v2xx(0), v2(WIDTH, HEIGHT), ColorAlpha(BLACK, 1));
 
                 if (IsTextureReady(editing_hitbox_texture)) {
-                    draw_texture_centered(editing_hitbox_texture, editing_hitbox_screen_pos, v2xx(editing_hitbox_scale), 0, WHITE);
+                    // draw_texture_centered(editing_hitbox_texture, editing_hitbox_screen_pos, v2xx(editing_hitbox_scale), 0, WHITE);
+                    Rectangle dst = {
+                        .x = editing_hitbox_screen_pos.x - (editing_hitbox_texture_size.x*0.5) * editing_hitbox_scale,
+                        .y = editing_hitbox_screen_pos.y - (editing_hitbox_texture_size.y*0.5) * editing_hitbox_scale,
+                        .width	= editing_hitbox_texture_size.x * editing_hitbox_scale,
+                        .height = editing_hitbox_texture_size.y * editing_hitbox_scale,
+                    };
+                    Rectangle src = {
+                        .x = editing_hitbox_texture_offset.x,
+                        .y = editing_hitbox_texture_offset.y,
+                        .width	= editing_hitbox_texture_size.x,
+                        .height = editing_hitbox_texture_size.y,
+                    };
+                    Vector2 origin = CLITERAL(Vector2) {
+                            .x = 0,
+                            .y = 0,
+                    };
+                    DrawTexturePro(editing_hitbox_texture, src, dst, origin, 0, WHITE);
+                    DrawRectangleLinesEx(dst, 1, WHITE);
+                    DrawCircleV(editing_hitbox_screen_pos, 4, GOLD);
                 }
 
                 draw_hitbox_offsetted_scaled(&editing_hitbox, editing_hitbox_screen_pos, v2xx(editing_hitbox_scale));

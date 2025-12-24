@@ -71,6 +71,8 @@ void update_bullet(Bullet *b) {
     animate_sprite_hframes(&b->spr, modified_delta);
     b->spr.pos = b->pos;
 
+    b->spr.rotation = RAD2DEG*v2_radians(b->dir) + 90;
+
     if (b->spawning) {
         float s = b->spr.scale.x;
         s -= modified_delta * b->anim_speed;

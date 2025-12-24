@@ -85,14 +85,6 @@ void load_config(lua_State *L) {
     if (!lua_check(L, luaL_dofile(L, "resources/scripts/config.lua"))) {
         log_error("Failed to load config!");
     } else {
-        // TEXTURE_PATH         = lua_getstring(L, "TEXTURE_PATH");
-        // HITBOX_PATH          = lua_getstring(L, "HITBOX_PATH");
-        // SCRIPT_PATH          = lua_getstring(L, "SCRIPT_PATH");
-        // HITBOXES_SCRIPT_PATH = lua_getstring(L, "HITBOXES_SCRIPT_PATH");
-        //
-        // RUMIA_SHOT_TEXPATH   = lua_getstring(L, "RUMIA_SHOT_TEXPATH");
-        // RUMIA_SHOT_SPEED     = lua_getfloat(L, "RUMIA_SHOT_SPEED");
-        //
         log_debug("Loaded config!");
     }
 }

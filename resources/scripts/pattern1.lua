@@ -25,9 +25,9 @@ function Pattern(x, y, dt)
 	end
 
 	for i = 1, bullet_count3, 1 do
-		local hbox = bullet_hitbox
+		local hbox = bullet2_hitbox
 		local a = angle3 + (i * (360 / bullet_count3))
-		local b = Bullet.new(x, y, 64, 0, 32, 32, 1, 1, 0, 500, 0, 100, a, hbox)
+		local b = Bullet.new(x, y, 0, 32, 11, 16, 1, 1, 0, 500, 0, 100, a, hbox)
 		table.insert(bullets, b)
 	end
 
