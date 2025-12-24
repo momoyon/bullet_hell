@@ -1,2 +1,5 @@
 bullet_hitbox = Hitbox.new(-5.000000, -5.000000, 10.000000, 10.000000)
 bullet2_hitbox = Hitbox.new(-1.500000, 0.000000, 3.000000, 4.000000)
+rumia_hitbox = Hitbox.new(-3.000000, -3.000000, 6.000000, 6.000000)
+rumia_bbox_hitbox = Hitbox.new(-15.500000, -28.500000, 29.000000, 57.000000)
+rumia_bbox_hitbox = Hitbox.new(-14.500000, -27.500000, 29.000000, 57.000000)

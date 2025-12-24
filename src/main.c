@@ -103,11 +103,14 @@ const char *state_as_str(const State state) {
     } while (0)
 
 
-#define TEXTBOX_NAME 0
-#define TEXTBOX_FILEPATH 1
-#define TEXTBOX_TEXPATH 2
-#define TEXTBOX_TEX_OFFSET 3
-#define TEXTBOX_TEX_SIZE 4
+// #define TEXTBOX_NAME 0
+typedef enum {
+    EDITING_TBOX_FILEPATH,
+    EDITING_TBOX_TEXPATH,
+    EDITING_TBOX_TEX_OFFSET,
+    EDITING_TBOX_TEX_SIZE,
+    EDITING_TBOX_COUNT,
+} Editing_tbox_kind;
 
 void confirm_filepath_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_texture, Textbox *editing_textboxes, Textbox *tbox) {
     (void)editing_hitbox_texture;
@@ -206,13 +209,13 @@ void confirm_texpath_tbox(Texture2D *editing_hitbox_texture, Vector2i *tex_size,
 }
 
 void confirm_name_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_texture, Textbox *editing_textboxes, Textbox *tbox, Vector2i *tex_size) {
-    int written = snprintf(editing_textboxes[TEXTBOX_FILEPATH].buff, editing_textboxes[TEXTBOX_FILEPATH].buff_size, "%s.hitbox", tbox->buff);
-    editing_textboxes[TEXTBOX_FILEPATH].cursor = written;
-    written = snprintf(editing_textboxes[TEXTBOX_TEXPATH].buff, editing_textboxes[TEXTBOX_TEXPATH].buff_size, "%s.png", tbox->buff);
-    editing_textboxes[TEXTBOX_TEXPATH].cursor = written;
+    int written = snprintf(editing_textboxes[EDITING_TBOX_FILEPATH].buff, editing_textboxes[EDITING_TBOX_FILEPATH].buff_size, "%s.hitbox", tbox->buff);
+    editing_textboxes[EDITING_TBOX_FILEPATH].cursor = written;
+    written = snprintf(editing_textboxes[EDITING_TBOX_TEXPATH].buff, editing_textboxes[EDITING_TBOX_TEXPATH].buff_size, "%s.png", tbox->buff);
+    editing_textboxes[EDITING_TBOX_TEXPATH].cursor = written;
 
-    confirm_filepath_tbox(editing_hitbox, editing_hitbox_texture, editing_textboxes, &editing_textboxes[TEXTBOX_FILEPATH]);
-    confirm_texpath_tbox(editing_hitbox_texture, tex_size, &editing_textboxes[TEXTBOX_TEXPATH]);
+    confirm_filepath_tbox(editing_hitbox, editing_hitbox_texture, editing_textboxes, &editing_textboxes[EDITING_TBOX_FILEPATH]);
+    confirm_texpath_tbox(editing_hitbox_texture, tex_size, &editing_textboxes[EDITING_TBOX_TEXPATH]);
 }
 
 int main(void) {
@@ -274,9 +277,9 @@ int main(void) {
     }
 
     Hitbox player_hitbox = {0};
-    if (!load_hitbox_from_file(&player_hitbox, arena_alloc_str(str_arena, "%s%s", lua_getstring(L, "HITBOX_PATH"), "rumia_player.hitbox"))) return 1;
+    if (!load_hitbox_from_lua(&player_hitbox, arena_alloc_str(str_arena, "%s_hitbox", "rumia"), L)) return 1;
     Hitbox player_hitbox_bounding = {0};
-    if (!load_hitbox_from_file(&player_hitbox_bounding, arena_alloc_str(str_arena, "%s%s", lua_getstring(L, "HITBOX_PATH"), "rumia_player_bounding.hitbox"))) return 1;
+    if (!load_hitbox_from_lua(&player_hitbox_bounding, arena_alloc_str(str_arena, "%s_hitbox", "rumia_bbox"), L)) return 1;
     player_hitbox.color = YELLOW;
     player_hitbox_bounding.color = GREEN;
     Hitbox shot_hitbox = {0};
@@ -321,12 +324,12 @@ int main(void) {
     Vector2 editing_hitbox_screen_pos = {WIDTH*0.5-(editing_hitbox.size.x*0.5), HEIGHT*0.5-(editing_hitbox.size.y*0.5)};
     Vector2 moving_offset = {0};
 
-    Textbox editing_textboxes[] = {
-        [TEXTBOX_NAME]       = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P), v2(200, GLOBAL_FS), 1024, "Hitbox Name", '1'),
-        [TEXTBOX_FILEPATH]   = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P-2*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox Filepath", '2'),
-        [TEXTBOX_TEXPATH]    = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P-4*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox Texpath", '3'),
-        [TEXTBOX_TEX_OFFSET] = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P-6*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox TexOffset", '4'),
-        [TEXTBOX_TEX_SIZE]   = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P-8*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox TexSize", '5'),
+    Textbox editing_textboxes[EDITING_TBOX_COUNT] = {
+        // [EDITING_TBOX_NAME]       = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P), v2(200, GLOBAL_FS), 1024, "Hitbox Name", '1'),
+        [EDITING_TBOX_FILEPATH]   = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P-2*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox Name", '2'),
+        [EDITING_TBOX_TEXPATH]    = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P-4*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox Texpath", '3'),
+        [EDITING_TBOX_TEX_OFFSET] = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P-6*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox TexOffset", '4'),
+        [EDITING_TBOX_TEX_SIZE]   = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P-8*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox TexSize", '5'),
     };
 
     log_debug("ARRAY_LEN(editing_textboxes): %zu", ARRAY_LEN(editing_textboxes));
@@ -395,6 +398,31 @@ int main(void) {
                             UI_text(&ui, "SPAWNERS", GLOBAL_UI_FS, RED);
                         } break;
                         case EDSTATE_HITBOX: {
+                            for (int i = 0; i < ARRAY_LEN(editing_textboxes); ++i) {
+                                Textbox *tbox = &editing_textboxes[i];
+                                if (UI_textbox(&ui, tbox)) {
+                                    switch (i) {
+                                        // case EDITING_TBOX_NAME: {
+                                        //     confirm_name_tbox(&editing_hitbox, &editing_hitbox_texture, editing_textboxes, tbox, &editing_hitbox_texture_size);
+                                        // } break;
+                                        case EDITING_TBOX_FILEPATH: {
+                                            confirm_filepath_tbox(&editing_hitbox, &editing_hitbox_texture, editing_textboxes, tbox);
+                                        } break;
+                                        case EDITING_TBOX_TEXPATH: {
+                                            confirm_texpath_tbox(&editing_hitbox_texture, &editing_hitbox_texture_size, tbox);
+                                        } break;
+                                        case EDITING_TBOX_TEX_OFFSET: {
+                                            confirm_texoffset_tbox(&editing_hitbox_texture_offset, tbox);
+                                        } break;
+                                        case EDITING_TBOX_TEX_SIZE: {
+                                            confirm_texsize_tbox(&editing_hitbox_texture_size, tbox);
+                                        } break;
+                                        default: ASSERT(false, "UNREACHABLE!");
+                                    }
+
+                                    tbox->active = false;
+                                }
+                            }
                         } break;
                         case EDSTATE_COUNT:
                         default: ASSERT(false, "UNREACHABLE!");
@@ -493,111 +521,69 @@ int main(void) {
                 switch (edstate) {
                     case EDSTATE_HITBOX: {
                         int active_count = 0;
-                        for (int i = 0; i < ARRAY_LEN(editing_textboxes); ++i) {
-                            Textbox *tbox = &editing_textboxes[i];
-                            bool other_active = false;
-                            for (int j = 0; j < ARRAY_LEN(editing_textboxes); ++j) {
-                                if (i == j) continue;
-                                if (editing_textboxes[j].active) {
-                                    other_active = true;
-                                    break;
-                                }
+                        for (int i = 0; i < EDITING_TBOX_COUNT; ++i) {
+                            active_count += editing_textboxes[i].active;
+                        }
+                        if (active_count > 0) break;
+                       
+                        // Set Scale
+                        if (IsKeyPressed(KEY_ZERO)) {
+                            editing_hitbox_scale = 1;
+                        }
+                        // Size
+                        if (!IsKeyDown(KEY_LEFT_CONTROL)) {
+                            if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_D, KEY_LEFT_ALT)) {
+                                editing_hitbox.size.x++;
                             }
-                            if (!other_active && update_textbox(tbox)) {
-                                for (int j = 0; j < ARRAY_LEN(editing_textboxes); ++j) {
-                                    if (i == j) continue;
-                                    editing_textboxes[j].active = false;
-                                }
+                            if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_A, KEY_LEFT_ALT)) {
+                                editing_hitbox.size.x--;
+                            }
+                            if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_S, KEY_LEFT_ALT)) {
+                                editing_hitbox.size.y++;
+                            }
+                            if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_W, KEY_LEFT_ALT)) {
+                                editing_hitbox.size.y--;
                             }
 
-                            active_count += tbox->active;
+                            // Move
+                            if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_LEFT, KEY_LEFT_ALT)) {
+                                editing_hitbox.pos.x--;
+                            }
+                            if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_RIGHT, KEY_LEFT_ALT)) {
+                                editing_hitbox.pos.x++;
+                            }
+                            if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_UP, KEY_LEFT_ALT)) {
+                                editing_hitbox.pos.y--;
+                            }
+                            if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_DOWN, KEY_LEFT_ALT)) {
+                                editing_hitbox.pos.y++;
+                            }
                         }
 
-                        for (int i = 0; i < ARRAY_LEN(editing_textboxes); ++i) {
-                            Textbox *tbox = &editing_textboxes[i];
-                            if (input_to_textbox(tbox)) {
-                                switch (i) {
-                                    case TEXTBOX_NAME: {
-                                        confirm_name_tbox(&editing_hitbox, &editing_hitbox_texture, editing_textboxes, tbox, &editing_hitbox_texture_size);
-                                    } break;
-                                    case TEXTBOX_FILEPATH: {
-                                        confirm_filepath_tbox(&editing_hitbox, &editing_hitbox_texture, editing_textboxes, tbox);
-                                    } break;
-                                    case TEXTBOX_TEXPATH: {
-                                        confirm_texpath_tbox(&editing_hitbox_texture, &editing_hitbox_texture_size, tbox);
-                                    } break;
-                                    case TEXTBOX_TEX_OFFSET: {
-                                        confirm_texoffset_tbox(&editing_hitbox_texture_offset, tbox);
-                                    } break;
-                                    case TEXTBOX_TEX_SIZE: {
-                                        confirm_texsize_tbox(&editing_hitbox_texture_size, tbox);
-                                    } break;
-                                    default: ASSERT(false, "UNREACHABLE!");
+                        if (IsKeyDown(KEY_LEFT_CONTROL)) {
+                            // Save
+                            if (IsKeyPressed(KEY_S)) {
+                                if (save_hitbox_to_lua_script(&editing_hitbox, editing_textboxes[EDITING_TBOX_FILEPATH].buff, lua_getstring(L, "HITBOXES_SCRIPT_PATH"))) {
+                                    refresh_hitboxes_script(L);
+                                    log_debug("Successfully saved hitbox %s to %s", editing_textboxes[EDITING_TBOX_FILEPATH].buff, lua_getstring(L, "HITBOXES_SCRIPT_PATH"));
+                                } else {
+                                    log_debug("Failed to save hitbox %s to %s", editing_textboxes[EDITING_TBOX_FILEPATH].buff, lua_getstring(L, "HITBOXES_SCRIPT_PATH"));
                                 }
-
-                                tbox->active = false;
+                            }
+                            // Load
+                            if (IsKeyPressed(KEY_L)) {
+                                if (load_hitbox_from_lua(&editing_hitbox, arena_alloc_str(str_arena, "%s_hitbox", editing_textboxes[EDITING_TBOX_FILEPATH].buff), L)) {
+                                    log_debug("Successfully loaded hitbox %s", editing_textboxes[EDITING_TBOX_FILEPATH].buff);
+                                } else {
+                                    log_error("Failed to load hitbox %s", editing_textboxes[EDITING_TBOX_FILEPATH].buff);
+                                }
                             }
                         }
-                        if (active_count == 0) {
-                            // Set Scale
-                            if (IsKeyPressed(KEY_ZERO)) {
-                                editing_hitbox_scale = 1;
-                            }
-                            // Size
-                            if (!IsKeyDown(KEY_LEFT_CONTROL)) {
-                                if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_D, KEY_LEFT_ALT)) {
-                                    editing_hitbox.size.x++;
-                                }
-                                if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_A, KEY_LEFT_ALT)) {
-                                    editing_hitbox.size.x--;
-                                }
-                                if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_S, KEY_LEFT_ALT)) {
-                                    editing_hitbox.size.y++;
-                                }
-                                if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_W, KEY_LEFT_ALT)) {
-                                    editing_hitbox.size.y--;
-                                }
 
-                                // Move
-                                if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_LEFT, KEY_LEFT_ALT)) {
-                                    editing_hitbox.pos.x--;
-                                }
-                                if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_RIGHT, KEY_LEFT_ALT)) {
-                                    editing_hitbox.pos.x++;
-                                }
-                                if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_UP, KEY_LEFT_ALT)) {
-                                    editing_hitbox.pos.y--;
-                                }
-                                if (is_key_down_ON_key_down_OR_key_pressed_repeat(KEY_DOWN, KEY_LEFT_ALT)) {
-                                    editing_hitbox.pos.y++;
-                                }
-                            }
-
-                            if (IsKeyDown(KEY_LEFT_CONTROL)) {
-                                // Save
-                                if (IsKeyPressed(KEY_S)) {
-                                    if (save_hitbox_to_lua_script(&editing_hitbox, editing_textboxes[TEXTBOX_FILEPATH].buff, lua_getstring(L, "HITBOXES_SCRIPT_PATH"))) {
-                                        refresh_hitboxes_script(L);
-                                        log_debug("Successfully saved hitbox %s to %s", editing_textboxes[TEXTBOX_FILEPATH].buff, lua_getstring(L, "HITBOXES_SCRIPT_PATH"));
-                                    } else {
-                                        log_debug("Failed to save hitbox %s to %s", editing_textboxes[TEXTBOX_FILEPATH].buff, lua_getstring(L, "HITBOXES_SCRIPT_PATH"));
-                                    }
-                                }
-                                // Load
-                                if (IsKeyPressed(KEY_L)) {
-                                    if (load_hitbox_from_lua(&editing_hitbox, editing_textboxes[TEXTBOX_FILEPATH].buff, L)) {
-                                        log_debug("Successfully loaded hitbox %s", editing_textboxes[TEXTBOX_FILEPATH].buff);
-                                    } else {
-                                        log_error("Failed to load hitbox %s", editing_textboxes[TEXTBOX_FILEPATH].buff);
-                                    }
-                                }
-                            }
-
-                            // Center on texture
-                            if (IsKeyPressed(KEY_C) && IsTextureReady(editing_hitbox_texture)) {
-                                editing_hitbox.pos.x = -editing_hitbox.size.x*0.5;
-                                editing_hitbox.pos.y = -editing_hitbox.size.y*0.5;;
-                            }
+                        // Center on texture
+                        if (IsKeyPressed(KEY_C) && IsTextureReady(editing_hitbox_texture)) {
+                            editing_hitbox.pos.x = -editing_hitbox.size.x*0.5;
+                            editing_hitbox.pos.y = -editing_hitbox.size.y*0.5;;
                         }
 
                         // Scaling
