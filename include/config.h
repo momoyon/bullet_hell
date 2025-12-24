@@ -8,6 +8,7 @@
 #include <bullet.h>
 #include <entity.h>
 #include <spawner.h>
+#include <level.h>
 
 #include <control_config.h>
 
@@ -31,6 +32,8 @@ extern Bullets bullets;
 extern Bullets shots;
 extern Entities enemies;
 extern Spawners spawners;
+extern Levels levels;
+extern int current_level;
 
 extern Arena arena;
 extern Arena temp_arena;

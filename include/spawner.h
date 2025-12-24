@@ -21,5 +21,4 @@ Spawner make_spawner(Vector2 pos, float spawn_rate);
 void update_spawner(Spawner *s);
 void draw_spawner(Spawner *s);
 
-
 #endif // SPAWNER_H_
