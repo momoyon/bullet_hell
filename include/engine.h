@@ -12,6 +12,8 @@
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
+// #define ENGINE_IMPLEMENTATION
+
 // NOTE: Mouse
 static bool __eng_ignore_mouse_input = false;
 Vector2 get_mpos_scaled(float scl);
@@ -123,6 +125,7 @@ typedef enum {
 	UI_DRAW_ELEMENT_TYPE_SPRITE,
 	UI_DRAW_ELEMENT_TYPE_SPRITE_FRAME,
 	UI_DRAW_ELEMENT_TYPE_TEXT,
+	UI_DRAW_ELEMENT_TYPE_LINE,
 	UI_DRAW_ELEMENT_TYPE_COUNT,
 } UI_Draw_element_type;
 
@@ -139,6 +142,7 @@ struct UI_Draw_element {
 	Font* font;
 	cstr text;
 	int font_size;
+    float thick;
 };
 
 typedef struct {
@@ -203,6 +207,7 @@ void UI_free(UI* this);
 void UI_begin(UI* this, UI_Layout_kind kind);
 bool UI_button(UI* this, cstr text, int font_size, Color color);
 void UI_text(UI* this, cstr text, int font_size, Color color);
+void UI_line(UI* this, float thick, Color color);
 void UI_spacing(UI* this, float spacing);
 void UI_sprite(UI* this, Sprite* spr);
 bool UI_sprite_button(UI* this, Sprite* spr);
@@ -621,6 +626,7 @@ const char *UI_Draw_element_type_as_str(const UI_Draw_element_type t) {
         case UI_DRAW_ELEMENT_TYPE_SPRITE: return "Sprite";
         case UI_DRAW_ELEMENT_TYPE_SPRITE_FRAME: return "Frame";
         case UI_DRAW_ELEMENT_TYPE_TEXT: return "Text";
+        case UI_DRAW_ELEMENT_TYPE_LINE: return "Line";
         case UI_DRAW_ELEMENT_TYPE_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -770,6 +776,31 @@ void UI_text(UI* this, cstr text, int font_size, Color color) {
 
     push_ui_widget(this, top, size);
     /* UI_Layout_push_widget(top, size); */
+}
+
+void UI_line(UI* this, float thick, Color color) {
+	int id = this->last_used_id++;
+	(void)id;
+	UI_Layout* top = UI_top_layout(this);
+	if (top == NULL) {
+		log_error("This function must be used between 'begin' and 'end'!");
+		return;
+	}
+
+	Vector2 pos = UI_Layout_available_pos(top);
+    pos.y += thick;
+	const Vector2 size = v2(this->ui_rect.width, thick * 4);
+
+	UI_Draw_element_stack_push(&this->draw_element_stack, (UI_Draw_element) {
+			.type = UI_DRAW_ELEMENT_TYPE_LINE,
+			.pos = pos,
+			.fill_color = color,
+			.out_color = color,
+			.spr = NULL,
+            .thick = thick,
+		});
+
+    push_ui_widget(this, top, size);
 }
 
 void UI_sprite(UI* this, Sprite* spr) {
@@ -1193,41 +1224,45 @@ void UI_draw(UI* this) {
 	UI_Draw_element elm = {0};
 	while (UI_Draw_element_stack_pop(&this->draw_element_stack, &elm)) {
 		switch (elm.type) {
-		case UI_DRAW_ELEMENT_TYPE_RECT: {
-			DrawRectangleRec((Rectangle) {elm.pos.x, elm.pos.y, elm.size.x, elm.size.y}, elm.fill_color);
-		} break;
-		case UI_DRAW_ELEMENT_TYPE_BOX: {
-			DrawRectangleRec((Rectangle) {elm.pos.x, elm.pos.y, elm.size.x, elm.size.y}, elm.fill_color);
-			DrawRectangleLinesEx((Rectangle) {elm.pos.x, elm.pos.y, elm.size.x, elm.size.y}, 1.f, elm.out_color);
-		} break;
-		case UI_DRAW_ELEMENT_TYPE_SPRITE: {
-			Color previous_tint = elm.spr->tint;
-			elm.spr->tint = elm.fill_color;
-			Vector2 prev_spr_pos = elm.spr->pos;
-			elm.spr->pos = elm.pos;
-			draw_sprite(elm.spr);
-			elm.spr->pos = prev_spr_pos;
-			elm.spr->tint = previous_tint;
-		} break;
-		case UI_DRAW_ELEMENT_TYPE_SPRITE_FRAME: {
-			Color previous_tint = elm.spr->tint;
-			int prev_hframe = elm.spr->hframe;
-			int prev_vframe = elm.spr->vframe;
-			set_sprite_hframe(elm.spr, elm.hframe);
-			set_sprite_vframe(elm.spr, elm.vframe);
-			elm.spr->tint = elm.fill_color; Vector2 prev_spr_pos = elm.spr->pos;
-			elm.spr->pos = elm.pos;
-			draw_sprite(elm.spr);
-			elm.spr->pos = prev_spr_pos;
-			elm.spr->tint = previous_tint;
-			set_sprite_hframe(elm.spr, prev_hframe);
-			set_sprite_vframe(elm.spr, prev_vframe);
-		} break;
-		case UI_DRAW_ELEMENT_TYPE_TEXT: {
-			DrawTextEx(*elm.font, elm.text, elm.pos, elm.font_size, 1.f, elm.fill_color);
-		} break;
-		case UI_DRAW_ELEMENT_TYPE_COUNT:
-		default: ASSERT(0, "Unreachable!");
+            case UI_DRAW_ELEMENT_TYPE_RECT: {
+                DrawRectangleRec((Rectangle) {elm.pos.x, elm.pos.y, elm.size.x, elm.size.y}, elm.fill_color);
+            } break;
+            case UI_DRAW_ELEMENT_TYPE_BOX: {
+                DrawRectangleRec((Rectangle) {elm.pos.x, elm.pos.y, elm.size.x, elm.size.y}, elm.fill_color);
+                DrawRectangleLinesEx((Rectangle) {elm.pos.x, elm.pos.y, elm.size.x, elm.size.y}, 1.f, elm.out_color);
+            } break;
+            case UI_DRAW_ELEMENT_TYPE_SPRITE: {
+                Color previous_tint = elm.spr->tint;
+                elm.spr->tint = elm.fill_color;
+                Vector2 prev_spr_pos = elm.spr->pos;
+                elm.spr->pos = elm.pos;
+                draw_sprite(elm.spr);
+                elm.spr->pos = prev_spr_pos;
+                elm.spr->tint = previous_tint;
+            } break;
+            case UI_DRAW_ELEMENT_TYPE_SPRITE_FRAME: {
+                Color previous_tint = elm.spr->tint;
+                int prev_hframe = elm.spr->hframe;
+                int prev_vframe = elm.spr->vframe;
+                set_sprite_hframe(elm.spr, elm.hframe);
+                set_sprite_vframe(elm.spr, elm.vframe);
+                elm.spr->tint = elm.fill_color; Vector2 prev_spr_pos = elm.spr->pos;
+                elm.spr->pos = elm.pos;
+                draw_sprite(elm.spr);
+                elm.spr->pos = prev_spr_pos;
+                elm.spr->tint = previous_tint;
+                set_sprite_hframe(elm.spr, prev_hframe);
+                set_sprite_vframe(elm.spr, prev_vframe);
+            } break;
+            case UI_DRAW_ELEMENT_TYPE_TEXT: {
+                DrawTextEx(*elm.font, elm.text, elm.pos, elm.font_size, 1.f, elm.fill_color);
+            } break;
+            case UI_DRAW_ELEMENT_TYPE_LINE: {
+                Vector2 pos2 = v2(this->ui_rect.x + this->ui_rect.width, elm.pos.y);
+                DrawLineEx(elm.pos, pos2, elm.thick, elm.out_color);
+            } break;
+            case UI_DRAW_ELEMENT_TYPE_COUNT:
+            default: ASSERT(0, "Unreachable!");
 		}
 	}
     EndScissorMode();

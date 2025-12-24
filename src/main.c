@@ -370,6 +370,8 @@ int main(void) {
         if (DEBUG_DRAW) {
             int font_size = 24;
             UI_text(&ui, arena_alloc_str(str_arena, "State: %s", state_as_str(current_state)), font_size, WHITE);
+            UI_text(&ui, arena_alloc_str(str_arena, "Delta [mod * dt: mod_dt]: %f * %f: %f", delta_modification, delta, modified_delta), font_size, WHITE);
+            UI_line(&ui, 2, WHITE);
 
             DrawFPS(0, 0);
 
@@ -381,13 +383,24 @@ int main(void) {
                         UI_text(&ui, arena_alloc_str(str_arena, "Level: %s, time: %.2f, %s", levels.items[current_level].name, levels.items[current_level].time, levels.items[current_level].paused ? "PAUSED" : "RUNNING"), font_size, YELLOW);
                     }
 
-                    UI_text(&ui, arena_alloc_str(str_arena, "Delta [mod * dt: mod_dt]: %f * %f: %f", delta_modification, delta, modified_delta), font_size, WHITE);
+                    UI_line(&ui, 2, WHITE);
                     UI_text(&ui, arena_alloc_str(str_arena, "Bullets count: %zu", bullets.count), font_size, RED);
                     UI_text(&ui, arena_alloc_str(str_arena, "Shots count: %zu", shots.count), font_size, RED);
                     UI_text(&ui, arena_alloc_str(str_arena, "Enemies count: %zu", enemies.count), font_size, RED);
                 } break;
                 case STATE_EDIT: {
                     UI_text(&ui, arena_alloc_str(str_arena, "Edit State: %s", edstate_as_str(edstate)), font_size, YELLOW);
+
+                    switch (edstate) {
+                        case EDSTATE_SPAWNERS: {
+                            UI_spacing(&ui, 10);
+                            UI_text(&ui, "SPAWNERS", GLOBAL_UI_FS, RED);
+                        } break;
+                        case EDSTATE_HITBOX: {
+                        } break;
+                        case EDSTATE_COUNT:
+                        default: ASSERT(false, "UNREACHABLE!");
+                    }
                 } break;
                 case STATE_LUA: {
                 } break;
