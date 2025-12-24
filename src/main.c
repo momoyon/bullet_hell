@@ -75,6 +75,7 @@ enum State {
 enum Edit_state {
     EDSTATE_SPAWNERS,
     EDSTATE_HITBOX,
+    EDSTATE_SFX,
     EDSTATE_COUNT,
 };
 
@@ -82,6 +83,7 @@ const char *edstate_as_str(const Edit_state state) {
     switch (state) {
         case EDSTATE_SPAWNERS: return "Spawners";
         case EDSTATE_HITBOX:   return "Hitbox";
+        case EDSTATE_SFX:      return "Sfx";
         case EDSTATE_COUNT:
         default: ASSERT(false, "UNREACHABLE!");
     }
@@ -243,6 +245,7 @@ int main(void) {
     luaL_dofile(L, arena_alloc_str(str_arena, "%s%s", lua_getstring(L, "SCRIPT_PATH"), "preload.lua"));
 
 	ren_tex = init_window(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_SCALE, "Bullet Hell", &WIDTH, &HEIGHT);
+    InitAudioDevice();
 	SetTargetFPS(60);
 	SetExitKey(0);
 
@@ -332,16 +335,14 @@ int main(void) {
         [EDITING_TBOX_TEX_SIZE]   = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-20-P-8*GLOBAL_FS), v2(200, GLOBAL_FS), 1024, "Hitbox TexSize", '5'),
     };
 
-    log_debug("ARRAY_LEN(editing_textboxes): %zu", ARRAY_LEN(editing_textboxes));
-
-    for (int i = 0; i < ARRAY_LEN(editing_textboxes); ++i) {
-        set_textbox_keys(&editing_textboxes[i], KEY_ONE+i, KEY_ONE+i);
-    }
-
     Texture2D editing_hitbox_texture = {0};
     Vector2i  editing_hitbox_texture_offset = {0};
     Vector2i  editing_hitbox_texture_size = {0};
     float editing_hitbox_scale = 1;
+
+    // Edit SFX Vars
+    Textbox edit_sfx_filepath_tbox = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(0, 0), v2(200, GLOBAL_FS), 1024, "SFX Path", 0);
+    Music edit_sfx_music = {0};
 
     // Mouse
     Vector2 m = {0};
@@ -398,6 +399,8 @@ int main(void) {
                             UI_text(&ui, "SPAWNERS", GLOBAL_UI_FS, RED);
                         } break;
                         case EDSTATE_HITBOX: {
+                            UI_spacing(&ui, 10);
+                            UI_text(&ui, "HITBOX", GLOBAL_UI_FS, RED);
                             for (int i = 0; i < ARRAY_LEN(editing_textboxes); ++i) {
                                 Textbox *tbox = &editing_textboxes[i];
                                 if (UI_textbox(&ui, tbox)) {
@@ -424,6 +427,44 @@ int main(void) {
                                 }
                             }
                         } break;
+                        case EDSTATE_SFX: {
+                            UI_spacing(&ui, 10);
+                            UI_text(&ui, "SFX", GLOBAL_UI_FS, RED);
+
+                            if (UI_textbox(&ui, &edit_sfx_filepath_tbox)) {
+                                edit_sfx_filepath_tbox.active = false;
+                                const char *fullpath = arena_alloc_str(str_arena, "%s%s", lua_getstring(L, "SFX_PATH"), edit_sfx_filepath_tbox.buff);
+                                log_debug("SFX PATH: %s", fullpath);
+                                if (IsMusicReady(edit_sfx_music)) {
+                                    UnloadMusicStream(edit_sfx_music);
+                                }
+                                edit_sfx_music = LoadMusicStream(fullpath);
+                                if (IsMusicReady(edit_sfx_music)) {
+                                    log_debug("Successfully loaded Music %s", fullpath);
+                                } else {
+                                    log_error("Failed to load Music %s", fullpath);
+                                }
+                            }
+
+                            if (UI_button(&ui, IsMusicStreamPlaying(edit_sfx_music) ? "PAUSE" : "PLAY", GLOBAL_UI_FS, WHITE)) {
+
+                                if (IsMusicStreamPlaying(edit_sfx_music)) {
+                                    log_debug("PAUSE");
+                                    PauseMusicStream(edit_sfx_music);
+                                } else {
+                                    log_debug("PLAY");
+                                    PlayMusicStream(edit_sfx_music);
+                                }
+                            }
+
+                            if (IsMusicReady(edit_sfx_music)) {
+                                float played_secs = GetMusicTimePlayed(edit_sfx_music);
+                                float played_mins = played_secs / 60.f;
+                                float length_secs = GetMusicTimeLength(edit_sfx_music);
+                                float length_mins = length_secs / 60.f;
+                                UI_text(&ui, arena_alloc_str(str_arena, "%.0f:%.2f/%.0f:%.2f", played_mins, played_secs, length_mins, length_secs), GLOBAL_UI_FS, WHITE);
+                            }
+                        } break;
                         case EDSTATE_COUNT:
                         default: ASSERT(false, "UNREACHABLE!");
                     }
@@ -448,6 +489,7 @@ int main(void) {
                             log_debug("Done file %s", actual_lua_scriptpath);
                         }
                     }
+
                 } break;
                 case STATE_COUNT:
                 default: ASSERT(false, "UNREACHABLE!");
@@ -593,6 +635,8 @@ int main(void) {
                     } break;
                     case EDSTATE_SPAWNERS: {
                     } break;
+                    case EDSTATE_SFX: {
+                    } break;
                     case EDSTATE_COUNT:
                     default: ASSERT(false, "UNREACHABLE!");
                 }
@@ -667,6 +711,11 @@ int main(void) {
                         }
                     } break;
                     case EDSTATE_SPAWNERS: {
+                    } break;
+                    case EDSTATE_SFX: {
+                        if (IsMusicReady(edit_sfx_music)) {
+                            UpdateMusicStream(edit_sfx_music);
+                        }
                     } break;
                     case EDSTATE_COUNT:
                     default: ASSERT(false, "UNREACHABLE!");
@@ -760,6 +809,8 @@ int main(void) {
                     } break;
                     case EDSTATE_SPAWNERS: {
                     } break;
+                    case EDSTATE_SFX: {
+                    } break;
                     case EDSTATE_COUNT:
                     default: ASSERT(false, "UNREACHABLE!");
                 }
@@ -784,6 +835,7 @@ int main(void) {
         Textbox *tbox = &editing_textboxes[i];
         free_textbox(tbox);
     }
+    free_textbox(&edit_sfx_filepath_tbox);
 
     // TODO: Free darrs
     lua_close(L);
