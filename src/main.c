@@ -299,6 +299,7 @@ int main(void) {
 	};
 
     int GLOBAL_FS=24;
+    int GLOBAL_UI_FS=GLOBAL_FS;
 
     State current_state = STATE_NORMAL;
     State prev_state    = STATE_NORMAL;
@@ -349,29 +350,55 @@ int main(void) {
 	Bullet_emitter em = make_bullet_emitter(L, v2(WIDTH*0.5, HEIGHT*0.5), &bullets, 0.05, "Pattern", (void*)&angle);
 
     UI_Theme ui_theme = get_default_ui_theme();
+    ui_theme.titlebar_font_size = GLOBAL_UI_FS;
+    ui_theme.titlebar_height = GLOBAL_UI_FS;
     UI ui = UI_make(ui_theme, &font, v2xx(P), "DEBUG", &m);
 
 	while (!WindowShouldClose()) {
+        ignore_mouse_input(false);
         delta = GetFrameTime();
         modified_delta = delta * delta_modification;
 		arena_reset(&temp_arena);
 		arena_reset(&str_arena);
 
         BeginDrawing();
+		ClearBackground(BLACK);
         m = get_mpos_scaled(SCREEN_SCALE);
 
-        // UI
-        // TODO: UI_begin or UI_end is causing segfault!
-        // UI_begin(&ui, UI_LAYOUT_KIND_VERT);
-        //
-        // if (UI_button(&ui, "Click Me!", GLOBAL_FS, GREEN)) {
-        //     log_debug("That tickles!");
-        // }
-        //
-        // log_debug("HER");
-        // UI_end(&ui);
+        // NOTE: UI
+        UI_begin(&ui, UI_LAYOUT_KIND_VERT);
+        if (DEBUG_DRAW) {
+            int font_size = 24;
+            UI_text(&ui, arena_alloc_str(str_arena, "State: %s", state_as_str(current_state)), font_size, WHITE);
 
-		// Input
+            DrawFPS(0, 0);
+
+            switch (current_state) {
+                case STATE_NORMAL: {
+                    if (current_level < 0) {
+                        UI_text(&ui, "No Level Selected", font_size, YELLOW);
+                    } else {
+                        UI_text(&ui, arena_alloc_str(str_arena, "Level: %s, time: %.2f, %s", levels.items[current_level].name, levels.items[current_level].time, levels.items[current_level].paused ? "PAUSED" : "RUNNING"), font_size, YELLOW);
+                    }
+
+                    UI_text(&ui, arena_alloc_str(str_arena, "Delta [mod * dt: mod_dt]: %f * %f: %f", delta_modification, delta, modified_delta), font_size, WHITE);
+                    UI_text(&ui, arena_alloc_str(str_arena, "Bullets count: %zu", bullets.count), font_size, RED);
+                    UI_text(&ui, arena_alloc_str(str_arena, "Shots count: %zu", shots.count), font_size, RED);
+                    UI_text(&ui, arena_alloc_str(str_arena, "Enemies count: %zu", enemies.count), font_size, RED);
+                } break;
+                case STATE_EDIT: {
+                    UI_text(&ui, arena_alloc_str(str_arena, "Edit State: %s", edstate_as_str(edstate)), font_size, YELLOW);
+                } break;
+                case STATE_LUA: {
+                } break;
+                case STATE_COUNT:
+                default: ASSERT(false, "UNREACHABLE!");
+            }
+        }
+        UI_end(&ui);
+
+
+		// NOTE: Input
         if (IsKeyPressed(KEY_F1)) CHANGE_STATE(STATE_NORMAL);
 		if (IsKeyPressed(KEY_GRAVE)) DEBUG_DRAW = !DEBUG_DRAW;
         if (IsKeyPressed(KEY_TAB)) {
@@ -395,7 +422,7 @@ int main(void) {
         switch (current_state) {
             case STATE_NORMAL: {
                 /// @DEBUG
-                if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                if (mouse_button_down(MOUSE_BUTTON_LEFT)) {
                     em.pos = m;
                     update_bullet_emitter(&em);
                 }
@@ -618,8 +645,8 @@ int main(void) {
             case STATE_EDIT: {
                 switch (edstate) {
                     case EDSTATE_HITBOX: {
-                        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT))   { moving_offset = v2_sub(m, editing_hitbox_screen_pos); }
-                        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                        if (mouse_button_pressed(MOUSE_BUTTON_LEFT))   { moving_offset = v2_sub(m, editing_hitbox_screen_pos); }
+                        if (mouse_button_down(MOUSE_BUTTON_LEFT)) {
                             editing_hitbox_screen_pos = v2_sub(m, moving_offset);
                         }
                     } break;
@@ -654,7 +681,6 @@ int main(void) {
         }
 
 		/// NOTE: Draw
-		ClearBackground(BLACK);
         /// @DEBUG
         DrawTextureEx(title_screen_tex, v2(0,0), 0, 1, WHITE);
 
@@ -748,29 +774,7 @@ int main(void) {
             default: ASSERT(false, "UNREACHABLE!");
         }
 
-        if (DEBUG_DRAW) {
-            Vector2 p = {10, 10};
-            int font_size = 24;
-            draw_info_text(&p, arena_alloc_str(str_arena, "State: %s", state_as_str(current_state)), font_size, WHITE);
-            if (current_state == STATE_EDIT) {
-                draw_info_text(&p, arena_alloc_str(str_arena, "Edit State: %s", edstate_as_str(edstate)), font_size, YELLOW);
-            }
-            if (current_state == STATE_NORMAL) {
-                if (current_level < 0) {
-                    draw_info_text(&p, "No Level Selected", font_size, YELLOW);
-                } else {
-                    draw_info_text(&p, arena_alloc_str(str_arena, "Level: %s, time: %.2f, %s", levels.items[current_level].name, levels.items[current_level].time, levels.items[current_level].paused ? "PAUSED" : "RUNNING"), font_size, YELLOW);
-                }
-
-                draw_info_text(&p, arena_alloc_str(str_arena, "Delta [mod * dt: mod_dt]: %f * %f: %f", delta_modification, delta, modified_delta), font_size, WHITE);
-                draw_info_text(&p, arena_alloc_str(str_arena, "Bullets count: %zu", bullets.count), font_size, RED);
-                draw_info_text(&p, arena_alloc_str(str_arena, "Shots count: %zu", shots.count), font_size, RED);
-                draw_info_text(&p, arena_alloc_str(str_arena, "Enemies count: %zu", enemies.count), font_size, RED);
-            }
-
-
-            DrawFPS(0, 0);
-        }
+        UI_draw(&ui);
 
         EndTextureMode();
         draw_ren_tex(ren_tex, SCREEN_WIDTH, SCREEN_HEIGHT);
