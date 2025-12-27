@@ -1,2 +1,7 @@
 *.exe
 .\raylib-5.0_win64_mingw-w64\
+.cache/clangd/index
+raylib-5.0_linux_amd64
+bullet_hell-debug
+bullet_hell
+compile_commands.json

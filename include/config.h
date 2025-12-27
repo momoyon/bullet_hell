@@ -1,11 +1,14 @@
 #ifndef _CONFIG_H_
 #define _CONFIG_H_
 
+#include <lua.h>
 #include <raylib.h>
 #include <stdbool.h>
 #include <engine.h>
 #include <bullet.h>
-#include <enemy.h>
+#include <entity.h>
+#include <spawner.h>
+#include <level.h>
 
 #include <control_config.h>
 
@@ -21,18 +24,21 @@ extern bool DEBUG_DRAW;
 extern RenderTexture2D ren_tex;
 extern Texture_manager tm;
 extern Font font;
-extern Camera2D cam;
-extern float cam_zoom;
+extern float delta;
+extern float modified_delta;
+extern float delta_modification;
 
-#define CAM_SPEED 100.f
-
-#define CAMERA_DEFAULT_ZOOM 1.5f
-
-extern Bullet_array bullets;
-extern Enemies enemies;
+extern Bullets bullets;
+extern Bullets shots;
+extern Entities enemies;
+extern Spawners spawners;
+extern Levels levels;
+extern int current_level;
 
 extern Arena arena;
 extern Arena temp_arena;
 extern Arena str_arena;
+
+extern lua_State *L;
 
 #endif // _CONFIG_H_

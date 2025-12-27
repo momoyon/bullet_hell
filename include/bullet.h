@@ -1,32 +1,43 @@
 #ifndef BULLET_H_
 #define BULLET_H_
 #include <raylib.h>
+#include <hitbox.h>
+#include <engine.h>
+#include <lua.h>
 #define COMMONLIB_REMOVE_PREFIX
 #include <commonlib.h>
 
 typedef struct Bullet Bullet;
-typedef struct Bullet_array Bullet_array;
+typedef struct Bullets Bullets;
 
 struct Bullet {
 	Vector2 pos;
 	Vector2 dir;
 
-	float hitbox_radius;
+    Hitbox hitbox;
 
 	float speed, min_speed, max_speed, speed_delta;
 
 	Texture2D tex;
+    Sprite spr;
+
+    bool spawning;
+    bool dying, dead;
+    float spawn_scale, dead_scale;
+    float anim_speed;
 };
 
-struct Bullet_array {
+struct Bullets {
 	Bullet *items;
 	size_t count;
 	size_t capacity;
 };
 
-Bullet make_bullet(Vector2 pos, float direction_degrees, float speed, float hitbox_radius);
+void define_bullet_struct_in_lua(lua_State *L);
+Bullet make_bullet(Vector2 pos, Vector2i tex_offset, Vector2i tex_size, int hframes, int vframes, float direction_degrees, float speed, Hitbox hbox);
 void set_bullet_speed(Bullet *b, float speed, float min, float max, float delta);
 void update_bullet(Bullet *b);
 void draw_bullet(Bullet *b);
+Bullet parse_bullet_from_lua(lua_State *L);
 
 #endif // BULLET_H_

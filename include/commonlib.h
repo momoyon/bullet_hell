@@ -10,11 +10,13 @@
 #include <assert.h>
 #include <limits.h>
 
-#if defined(_WIN32) && defined(_MSC_VER)
+#if defined(_WIN32) || defined(_MSC_VER)
+// TODO: Name collisions with raylib
 // NOTE: Don't include unwanted files to speed up compilation
 #define WIN32_LEAN_AND_MEAN
 #define NOCOMM
 #include <windows.h>
+#include <shlwapi.h>
 #undef C_ASSERT // Bruh
 #endif
 
@@ -43,6 +45,7 @@
 
 #define os_get_timedate c_os_get_timedate
 #define os_file_exists c_os_file_exists
+#define os_list_files c_os_list_files
 
 #define log_error c_log_error
 #define log_info c_log_info
@@ -74,6 +77,7 @@
 #define sb_free c_sb_free
 
 #define String_view c_String_view
+#define String_array c_String_array
 
 #define shift_args c_shift_args
 
@@ -113,7 +117,6 @@
 #define SET_FLAG C_SET_FLAG
 #define UNSET_FLAG C_UNSET_FLAG
 #define GET_FLAG C_GET_FLAG
-#define DEBUG_BREAK C_DEBUG_BREAK
 
 #endif // COMMONLIB_REMOVE_PREFIX
 
@@ -161,9 +164,8 @@ typedef wchar_t wchar;
 typedef const char*  cstr;
 typedef const wchar* wstr;
 
+
 // Static variables
-#define C_ERROR_BUFF_CAP (1024)
-extern char __error_buff__[C_ERROR_BUFF_CAP];
 
 // Macros
 #if defined(_MSC_VER) && !defined(__clang__) && !defined(__INTEL_COMPILER)
@@ -187,35 +189,6 @@ extern char __error_buff__[C_ERROR_BUFF_CAP];
 #define c_shift(xs, xsz) (assert(xsz > 0 && "Array is empty"), xsz--, *xs++)
 #define c_shift_args c_shift
 
-#if defined(_WIN32) || defined(_WIN64)
-  /* MSVC: use intrinsic */
-  #if defined(_MSC_VER)
-    #include <intrin.h>
-    #pragma intrinsic(DebugBreak)
-    #define C_DEBUG_BREAK() DebugBreak()
-  #else
-    /* MinGW / other compilers: declare function manually to avoid windows.h */
-    #ifdef __cplusplus
-    extern "C" __declspec(dllimport) void __stdcall DebugBreak(void);
-    #else
-    __declspec(dllimport) void __stdcall DebugBreak(void);
-    #endif
-    #define C_DEBUG_BREAK() DebugBreak()
-  #endif
-#elif defined(__unix__) || defined(__APPLE__) || defined(__linux__) || defined(__ANDROID__) || defined(__MACH__)
-  #include <signal.h>
-  #if defined(__x86_64__) || defined(__i386__)
-    #define C_DEBUG_BREAK() __asm__ volatile("int3")
-  #elif defined(__aarch64__)
-    #define C_DEBUG_BREAK() __asm__ volatile("brk #0")
-  #else
-    #define C_DEBUG_BREAK() raise(SIGTRAP)
-  #endif
-#else
-  #include <signal.h>
-  #define C_DEBUG_BREAK() raise(SIGTRAP)
-#endif
-
 //
 // Math
 //
@@ -230,6 +203,7 @@ float c_mapf(float value, float from1, float to1, float from2, float to2);
 //
 
 typedef struct c_Arena c_Arena;
+typedef struct c_String_array c_String_array;
 
 //
 // ## Data Structures
@@ -246,7 +220,7 @@ typedef struct c_Arena c_Arena;
 // in the struct; So we recommend defining da structs manually like:
 // ```C
 // typedef struct {
-//    <item-type> items;
+//    <item-type> *items;
 //    size_t count;
 //    size_t capacity;
 //    [extra fields...];
@@ -398,19 +372,20 @@ typedef struct c_Arena c_Arena;
 
 void c_os_get_timedate(c_Arena* a);
 bool c_os_file_exists(cstr filename);
+c_String_array c_os_list_files(cstr dir);
 
 //
 // Logging
 //
 
 #define c_log_error(fmt, ...) do {\
-		fprintf(stderr, "%s"fmt"\n", "[ERROR] ", ##__VA_ARGS__);\
+		fprintf(stderr, "%s" fmt"\n", "[ERROR] ", ##__VA_ARGS__);\
 	} while (0)
 #define c_log_info(fmt, ...) do {\
-		fprintf(stdout, "%s"fmt"\n", "[INFO] ", ##__VA_ARGS__);\
+		fprintf(stdout, "%s" fmt"\n", "[INFO] ", ##__VA_ARGS__);\
 	} while (0)
 #define c_log_warning(fmt, ...) do {\
-		fprintf(stdout, "%s"fmt"\n", "[WARNING] ", ##__VA_ARGS__);\
+		fprintf(stdout, "%s" fmt"\n", "[WARNING] ", ##__VA_ARGS__);\
 	} while (0)
 #ifdef DEBUG
 #define c_log_debug(fmt, ...) do {\
@@ -489,6 +464,16 @@ void c_sb_append_null(c_String_builder *sb);
 void c_sb_free(c_String_builder *sb);
 
 //
+// String array
+//
+
+struct c_String_array {
+    char **items;
+    size_t count;
+    size_t capacity;
+};
+
+//
 // String view
 //
 
@@ -541,7 +526,6 @@ bool c_sv_lpop_arg(c_String_view *sv, c_String_view *out);
 // My things implementation:
 
 // Global variables
-char __error_buff__[C_ERROR_BUFF_CAP] = {0};
 
 //
 // Math
@@ -560,7 +544,7 @@ float c_clampf(float v, float min, float max) {
 }
 
 float c_randomf(float from, float to) {
-	float r = rand() / RAND_MAX;
+	float r = (float)rand() / (float)RAND_MAX;
 	return from + (to - from) * r;
 }
 
@@ -587,12 +571,22 @@ void c_os_get_timedate(c_Arena* a) {
 }
 
 bool c_os_file_exists(cstr filename) {
-        (void) filename;
-        C_ASSERT(false, "Unimplemented!");
-        return false;
+    return PathFileExistsA(filename);
+}
+
+c_String_array c_os_list_files(cstr dir) {
+    c_Stc_String_array res = {0};
+    ASSERT(false, "UNIMPLEMENTED!");
+    return res;
 }
 
 #elif defined(__linux__)
+#include <stdio.h>
+#include <stdlib.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <string.h>
+
 void c_os_get_timedate(c_Arena* a) {
         (void)a;
         C_ASSERT(false, "Unimplemented!");
@@ -601,6 +595,40 @@ void c_os_get_timedate(c_Arena* a) {
 bool c_os_file_exists(cstr filename) {
         struct stat buf;
         return stat(filename, &buf) == 0;
+}
+
+c_String_array c_os_list_files(cstr dir) {
+    c_String_array res = {0};
+    struct dirent *entry;
+    struct stat fileStat;
+    DIR *dp = opendir(dir);
+
+    // Check if the directory can be opened
+    if (dp == NULL) {
+        perror("opendir");
+        return res;
+    }
+
+    // Read entries from the directory
+    while ((entry = readdir(dp)) != NULL) {
+        // Get the file status
+        if (stat(entry->d_name, &fileStat) == -1) {
+            perror("stat");
+            continue;
+        }
+        
+        // Check if it is a regular file
+        if (S_ISREG(fileStat.st_mode)) {
+            char *item = strdup(entry->d_name);
+            c_darr_append(res, item);
+            // printf("%s\n", item);
+        }
+    }
+
+    // Close the directory
+    closedir(dp);
+
+    return res;
 }
 #endif
 
@@ -614,36 +642,31 @@ const char *c_read_file(const char* filename, int *file_size) {
     char* result = NULL;
 
     if (f == NULL){
-        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
-        c_log_error("'%s': %s", filename, __error_buff__);
+        c_log_error("'%s': %s", filename, strerror(errno));
         defer(NULL);
     }
 
     if (fseek(f, 0, SEEK_END) < 0) {
-        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
-        c_log_error("'%s': %s", filename, __error_buff__);
+        c_log_error("'%s': %s", filename, strerror(errno));
         defer(NULL);
     }
 
     size_t fsize = ftell(f);
 
     if (fsize == (size_t)-1){
-        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
-        c_log_error("'%s': %s", filename, __error_buff__);
+        c_log_error("'%s': %s", filename, strerror(errno));
         defer(NULL);
     }
 
     result = C_MALLOC(sizeof(char)*(fsize+1));
 
     if (result == NULL){
-        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
-        c_log_error("'%s': %s", filename, __error_buff__);
+        c_log_error("'%s': %s", filename, strerror(errno));
         defer(NULL);
     }
 
     if (fseek(f, 0, SEEK_SET) < 0) {
-        strerror_s(__error_buff__, C_ERROR_BUFF_CAP, errno);
-        c_log_error("'%s': %s", filename, __error_buff__);
+        c_log_error("'%s': %s", filename, strerror(errno));
         defer(NULL);
     }
 
