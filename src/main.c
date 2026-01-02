@@ -141,7 +141,6 @@ void confirm_texoffset_tbox(Vector2i *editing_hitbox_offset, Textbox *tbox) {
     String_view y_sv = sv_lpop_until_char(&sv, ' ');
     sv_lremove(&sv, 1); // Remove SPACE
 
-
     int x_count = -1;
     float x = sv_to_float(x_sv, &x_count);
     if (x_count == -1) {
@@ -289,6 +288,18 @@ int main(void) {
     if (!load_hitbox_from_file(&shot_hitbox, arena_alloc_str(str_arena, "%s%s", lua_getstring(L, "HITBOX_PATH"), "rumia_shot.hitbox"))) return 1;
     shot_hitbox.color = BLUE;
 	Entity player = make_player(&shots, v2(WIDTH*0.5, HEIGHT*0.5), 0.05f, 400.f, 200.f, "resources/gfx/rumia_player.png", 3, 1, player_hitbox, player_hitbox_bounding, shot_hitbox, lua_getstring(L, "RUMIA_SHOT_TEXPATH"));
+
+	Sprite player_hitbox_spr = {0};
+	Texture2D player_hitbox_tex = {0};
+	if (!load_texture(&tm, arena_alloc_str(str_arena, "%s%s", lua_getstring(L, "TEXTURE_PATH"), "rumia_hitbox.png"), &player_hitbox_tex)) {
+		log_error("Failed to load Player Hitbox Texture!");
+		return 1;
+	}
+	if (!init_sprite(&player_hitbox_spr, player_hitbox_tex, 1, 1)) {
+		log_error("Failed to init Player Hitbox Sprite!");
+		return 1;
+	}
+	center_sprite_origin(&player_hitbox_spr);
 
 	font = GetFontDefault();
 	if (!IsFontReady(font)) {
@@ -555,7 +566,7 @@ int main(void) {
             case STATE_EDIT: {
 
                 // Edit State switching
-                if (IsKeyPressed(KEY_KP_ENTER)) {
+                if (IsKeyPressed(KEY_F9)) {
                     int next = edstate + 1;
                     if (next >= EDSTATE_COUNT) next = 0;
                     edstate = next;
@@ -655,6 +666,7 @@ int main(void) {
                 control_entity(&player, player_controls);
                 bind(&player.pos, player.bounding_hitbox, bounds);
                 update_entity(&player);
+				player_hitbox_spr.pos = player.pos;
                 // Update Bullets
                 for (int i = bullets.count-1; i >= 0; --i) {
                     Bullet *b = &bullets.items[i];
@@ -732,6 +744,7 @@ int main(void) {
         DrawTextureEx(title_screen_tex, v2(0,0), 0, 1, WHITE);
 
 		draw_entity(&player);
+		draw_sprite(&player_hitbox_spr);
 
         // Draw Enemies
         for (int i = enemies.count-1; i >= 0; --i) {
