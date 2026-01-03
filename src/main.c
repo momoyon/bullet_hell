@@ -311,7 +311,12 @@ int main(void) {
 		exit(1);
 	}
 
-	const float pad = 100.f;
+
+	int TILESIZE = lua_getint(L, "TILESIZE");
+	log_debug("WIDTH / TILESIZE: %d / %d : %d", WIDTH, TILESIZE, WIDTH/TILESIZE);
+	log_debug("HEIGHT / TILESIZE: %d / %d : %d", HEIGHT, TILESIZE, HEIGHT/TILESIZE);
+
+	const float pad = TILESIZE*2;
 	Rectangle bounds = {
 		.x = pad,
 		.y = pad,
@@ -319,6 +324,14 @@ int main(void) {
 		.height = HEIGHT - (pad*2),
 	};
 
+	log_debug("BOUNDS_W / TILESIZE: %d / %d : %d", (int)bounds.width, TILESIZE, (int)bounds.width/TILESIZE);
+	log_debug("BOUNDS_H / TILESIZE: %d / %d : %d", (int)bounds.height, TILESIZE, (int)bounds.height/TILESIZE);
+
+	int ROWS = (int)bounds.height / TILESIZE;
+	int COLS = (int)bounds.width / TILESIZE;
+
+	ASSERT((int)(bounds.width) % TILESIZE == 0, "Bounds.width is not divisble by TILESIZE!");
+	ASSERT((int)(bounds.height) % TILESIZE == 0, "Bounds.height is not divisble by TILESIZE!");
     int GLOBAL_FS=24;
     int GLOBAL_UI_FS=GLOBAL_FS;
 
@@ -329,7 +342,7 @@ int main(void) {
 
     int P=10;
 
-    /// Lua Vars
+    /// Edit Lua Vars
     int H=GLOBAL_FS+2;
     Textbox lua_script_tbox = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-GLOBAL_FS-P-(0*H)), v2(200, H), 1024, "Lua Script", ' ');
     Textbox lua_func_tbox   = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(P, HEIGHT-GLOBAL_FS-P-(1*H)), v2(200, H), 1024, "Lua Func", 'f');
@@ -365,6 +378,8 @@ int main(void) {
 	Textbox edit_spawners_stage_time_tbox = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(0, 0), v2(200, GLOBAL_FS), 1024, "Stage Time", 0);
 	bool edit_spawners_time_paused = true;
 	float edit_spawners_slider_t = 0.f;
+	Vector2 edit_spawners_cursor = {0};
+	Spawners edit_spawners = {0};
 
     // Mouse
     Vector2 m = {0};
@@ -435,22 +450,22 @@ int main(void) {
 								}
 							UI_end_layout(&ui);
 							UI_begin_layout(&ui, UI_LAYOUT_KIND_HORZ);
-								if (UI_button(&ui, "<<", GLOBAL_UI_FS, WHITE)) {
+								if (UI_button(&ui, "<<", GLOBAL_UI_FS, WHITE) || (IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_A))) {
 									rewind_time_by(-5.f, &edit_spawners_elapsed_time, 0.f, edit_spawners_stage_time);
 									edit_spawners_time_paused = true;
 								}
-								if (UI_button(&ui, "<", GLOBAL_UI_FS, WHITE)) {
+								if (UI_button(&ui, "<", GLOBAL_UI_FS, WHITE) || (!IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_A))) {
 									rewind_time_by(-1.f, &edit_spawners_elapsed_time, 0.f, edit_spawners_stage_time);
 									edit_spawners_time_paused = true;
 								}
 								if (UI_button(&ui, "TOGG", GLOBAL_UI_FS, WHITE)) {
 									edit_spawners_time_paused = !edit_spawners_time_paused;
 								}
-								if (UI_button(&ui, ">", GLOBAL_UI_FS, WHITE)) {
+								if (UI_button(&ui, ">", GLOBAL_UI_FS, WHITE) || (!IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_D))) {
 									rewind_time_by(1.f, &edit_spawners_elapsed_time, 0.f, edit_spawners_stage_time);
 									edit_spawners_time_paused = true;
 								}
-								if (UI_button(&ui, ">>", GLOBAL_UI_FS, WHITE)) {
+								if (UI_button(&ui, ">>", GLOBAL_UI_FS, WHITE) || (IsKeyDown(KEY_LEFT_SHIFT) && IsKeyPressed(KEY_D))) {
 									rewind_time_by(5.f, &edit_spawners_elapsed_time, 0.f, edit_spawners_stage_time);
 									edit_spawners_time_paused = true;
 								}
@@ -702,6 +717,11 @@ int main(void) {
 									edit_spawners_time_paused = true;
 								}
 							}
+
+							if (mouse_button_pressed(MOUSE_BUTTON_LEFT)) {
+								Spawner s = make_spawner(edit_spawners_cursor, edit_spawners_elapsed_time, 1, 1);
+								darr_append(edit_spawners, s);
+							}
 						}
                     } break;
                     case EDSTATE_SFX: {
@@ -781,6 +801,9 @@ int main(void) {
                         }
                     } break;
                     case EDSTATE_SPAWNERS: {
+						edit_spawners_cursor.x = (float)((int)m.x / (int)TILESIZE)*TILESIZE;
+						edit_spawners_cursor.y = (float)((int)m.y / (int)TILESIZE)*TILESIZE;
+
 						if (!edit_spawners_time_paused) {
 							edit_spawners_elapsed_time += delta;
 						}
@@ -849,13 +872,13 @@ int main(void) {
                             Rectangle dst = {
                                 .x = editing_hitbox_screen_pos.x - (editing_hitbox_texture_size.x*0.5) * editing_hitbox_scale,
                                 .y = editing_hitbox_screen_pos.y - (editing_hitbox_texture_size.y*0.5) * editing_hitbox_scale,
-                                .width	= editing_hitbox_texture_size.x * editing_hitbox_scale,
+                                .width = editing_hitbox_texture_size.x * editing_hitbox_scale,
                                 .height = editing_hitbox_texture_size.y * editing_hitbox_scale,
                             };
                             Rectangle src = {
                                 .x = editing_hitbox_texture_offset.x,
                                 .y = editing_hitbox_texture_offset.y,
-                                .width	= editing_hitbox_texture_size.x,
+                                .width = editing_hitbox_texture_size.x,
                                 .height = editing_hitbox_texture_size.y,
                             };
                             Vector2 origin = CLITERAL(Vector2) {
@@ -889,6 +912,30 @@ int main(void) {
                         // }
                     } break;
                     case EDSTATE_SPAWNERS: {
+						DrawRectangleLinesEx(bounds, 1.f, WHITE);
+						for (int r = 0; r < ROWS; ++r) {
+							float y = bounds.y + (r * TILESIZE * 1.f);
+							DrawLine(bounds.x, y, bounds.x + bounds.width, y, WHITE);
+						}
+						for (int c = 0; c < COLS; ++c) {
+							float x = bounds.x + (c * TILESIZE * 1.f);
+							DrawLine(x, bounds.y, x, bounds.y + bounds.height, WHITE);
+						}
+
+						DrawCircleV(edit_spawners_cursor, TILESIZE*0.25, RED);
+						Rectangle r = { .x = edit_spawners_cursor.x, .y = edit_spawners_cursor.y, .width = TILESIZE, .height = TILESIZE };
+						DrawRectangleLinesEx(r, 2.f, RED);
+
+						for (int i = 0; i < edit_spawners.count; ++i) {
+							Spawner *s = &edit_spawners.items[i];
+							float diff = fabsf(s->start_time - edit_spawners_elapsed_time);
+							float D = 5.f;
+							if (diff <= D) {
+								draw_spawner(s, mapf(diff, 0, D, 1, 0));
+								if (diff <= 0.99)
+									DrawCircleLinesV(s->pos, TILESIZE*0.65, WHITE);
+							}
+						}
                     } break;
                     case EDSTATE_SFX: {
                     } break;

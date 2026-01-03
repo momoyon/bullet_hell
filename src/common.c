@@ -80,6 +80,19 @@ float lua_getfloat(lua_State *L, const char *name) {
     return res;
 }
 
+int lua_getint(lua_State *L, const char *name) {
+    int type = lua_getglobal(L, name);
+    int res = 0;
+    if (type != LUA_TNUMBER) {
+        log_error("Expected int but got %s", lua_typename(L, type));
+        return 0;
+    }
+    res = lua_tonumber(L, -1);
+    lua_pop(L, 1);
+
+    return res;
+}
+
 void load_config(lua_State *L) {
     // config.lua path has to be hard-coded
     if (!lua_check(L, luaL_dofile(L, "resources/scripts/config.lua"))) {

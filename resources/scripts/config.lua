@@ -1,3 +1,4 @@
+TILESIZE = 32
 TEXTURE_PATH = "resources/gfx/"
 HITBOX_PATH = "resources/hbox/"
 SCRIPT_PATH = "resources/scripts/"
