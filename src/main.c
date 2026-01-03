@@ -382,8 +382,11 @@ int main(void) {
 	Vector2 edit_spawners_cursor = {0};
 	Spawners edit_spawners = {0};
 	Spawner *edit_spawners_selected = NULL;
+	int edit_spawners_selected_idx = -1;
+	Spawner edit_spawners_template = {0};
 	float edit_spawners_time_diff = 5.f;
 	Textbox edit_spawners_filepath_tbox = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(0, 0), v2(200, GLOBAL_FS), 1024, "Filepath", 0);
+	Textbox edit_spawners_spawn_rate_tbox = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(0, 0), v2(200, GLOBAL_FS), 1024, "Spawn Rate", 0);
 
     // Mouse
     Vector2 m = {0};
@@ -475,6 +478,32 @@ int main(void) {
 								}
 							UI_end_layout(&ui);
 							UI_text(&ui, arena_alloc_str(str_arena, "Spawners count: %zu", edit_spawners.count), GLOBAL_UI_FS, WHITE);
+							UI_text(&ui, "Template:", GLOBAL_UI_FS, GOLD);
+							UI_text(&ui, arena_alloc_str(str_arena, "Pos: %.2f, %.2f", edit_spawners_template.pos.x, edit_spawners_template.pos.y), GLOBAL_UI_FS, GOLD);
+							UI_text(&ui, arena_alloc_str(str_arena, "Start time: %.2f", edit_spawners_template.start_time), GLOBAL_UI_FS, GOLD);
+							UI_begin_layout(&ui, UI_LAYOUT_KIND_HORZ);
+								UI_text(&ui, arena_alloc_str(str_arena, "Spawn rate: %.2f", edit_spawners_template.alarm.alarm_time), GLOBAL_UI_FS, GOLD);
+								if (UI_textbox(&ui, &edit_spawners_spawn_rate_tbox)) {
+									edit_spawners_spawn_rate_tbox.active = false;
+									char *endp = NULL;
+									float f = strtod(edit_spawners_spawn_rate_tbox.buff, &endp);
+									if (endp == NULL) {
+										log_error("Failed to convert %s to a float!", edit_spawners_spawn_rate_tbox.buff);
+									} else {
+										edit_spawners_template.alarm.alarm_time = f;
+									}
+								}
+							UI_end_layout(&ui);
+							UI_begin_layout(&ui, UI_LAYOUT_KIND_HORZ);
+							UI_text(&ui, arena_alloc_str(str_arena, "Spawn count: %d", edit_spawners_template.spawn_count), GLOBAL_UI_FS, GOLD);
+								if (UI_button(&ui, "-", GLOBAL_UI_FS, GOLD)) {
+									edit_spawners_template.spawn_count--;
+									if (edit_spawners_template.spawn_count < 1) edit_spawners_template.spawn_count = 1;
+								}
+								if (UI_button(&ui, "+", GLOBAL_UI_FS, GOLD)) {
+									edit_spawners_template.spawn_count++;
+								}
+							UI_end_layout(&ui);
 							UI_text(&ui, arena_alloc_str(str_arena, "Selected: %s", edit_spawners_selected ? "SOMETHING" : "Nothing"), GLOBAL_UI_FS, WHITE);
 							if (UI_textbox(&ui, &edit_spawners_filepath_tbox)) {
 								edit_spawners_filepath_tbox.active = false;
@@ -731,7 +760,9 @@ int main(void) {
 
                     } break;
                     case EDSTATE_SPAWNERS: {
-						if (!edit_spawners_stage_time_tbox.active) {
+						if (!edit_spawners_stage_time_tbox.active &&
+							!edit_spawners_spawn_rate_tbox.active &&
+							!edit_spawners_filepath_tbox.active) {
 							if (IsKeyPressed(KEY_SPACE)) {
 								edit_spawners_time_paused = !edit_spawners_time_paused;
 							}
@@ -743,8 +774,7 @@ int main(void) {
 							}
 
 							if (mouse_button_pressed(MOUSE_BUTTON_LEFT)) {
-								Spawner s = make_spawner(edit_spawners_cursor, edit_spawners_elapsed_time, 1, 1);
-								darr_append(edit_spawners, s);
+								darr_append(edit_spawners, edit_spawners_template);
 							}
 
 							if (mouse_button_pressed(MOUSE_BUTTON_RIGHT)) {
@@ -756,12 +786,21 @@ int main(void) {
 									if (s->pos.x == edit_spawners_cursor.x && 
 										s->pos.y == edit_spawners_cursor.y) {
 										edit_spawners_selected = s;
+										edit_spawners_selected_idx = i;
 									}
 								}
 							}
 
-							// Move selected spawner
+
 							if (edit_spawners_selected) {
+								// Delete selecte spawner
+								if(IsKeyPressed(KEY_DELETE)) {
+									log_debug("Deleting spawner with id %d", edit_spawners_selected_idx);
+									ASSERT(edit_spawners_selected_idx >= 0 && edit_spawners_selected_idx < edit_spawners.count, "edit_spawners_selected_idx outofbounds!");
+									darr_delete(edit_spawners, Spawner, edit_spawners_selected_idx);
+								}
+
+								// Move selected spawner
 								if (IsKeyPressed(KEY_LEFT)) {
 									edit_spawners_selected->pos.x -= TILESIZE;
 									if (edit_spawners_selected->pos.x < bounds.x) edit_spawners_selected->pos.x = bounds.x;
@@ -860,6 +899,8 @@ int main(void) {
                     case EDSTATE_SPAWNERS: {
 						edit_spawners_cursor.x = (float)((int)m.x / (int)TILESIZE)*TILESIZE;
 						edit_spawners_cursor.y = (float)((int)m.y / (int)TILESIZE)*TILESIZE;
+						edit_spawners_template.pos = edit_spawners_cursor;
+						edit_spawners_template.start_time = edit_spawners_elapsed_time;
 
 						if (!edit_spawners_time_paused) {
 							edit_spawners_elapsed_time += delta;
