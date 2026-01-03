@@ -114,6 +114,10 @@ typedef enum {
     EDITING_TBOX_COUNT,
 } Editing_tbox_kind;
 
+void rewind_time_by(float by, float *time, float min, float max) {
+	(*time) = clampf(*time + by, min, max);
+}
+
 void confirm_filepath_tbox(Hitbox *editing_hitbox, Texture2D *editing_hitbox_texture, Textbox *editing_textboxes, Textbox *tbox) {
     (void)editing_hitbox_texture;
     (void)editing_textboxes;
@@ -285,7 +289,7 @@ int main(void) {
     player_hitbox.color = YELLOW;
     player_hitbox_bounding.color = GREEN;
     Hitbox shot_hitbox = {0};
-    if (!load_hitbox_from_file(&shot_hitbox, arena_alloc_str(str_arena, "%s%s", lua_getstring(L, "HITBOX_PATH"), "rumia_shot.hitbox"))) return 1;
+    if (!load_hitbox_from_lua(&shot_hitbox, arena_alloc_str(str_arena, "%s_hitbox", "rumia"), L)) return 1;
     shot_hitbox.color = BLUE;
 	Entity player = make_player(&shots, v2(WIDTH*0.5, HEIGHT*0.5), 0.05f, 400.f, 200.f, "resources/gfx/rumia_player.png", 3, 1, player_hitbox, player_hitbox_bounding, shot_hitbox, lua_getstring(L, "RUMIA_SHOT_TEXPATH"));
 
@@ -355,6 +359,13 @@ int main(void) {
     Textbox edit_sfx_filepath_tbox = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(0, 0), v2(200, GLOBAL_FS), 1024, "SFX Path", 0);
     Music edit_sfx_music = {0};
 
+	// Edit Spawners
+	float edit_spawners_elapsed_time = 0.f;
+	float edit_spawners_stage_time = 30.f;
+	Textbox edit_spawners_stage_time_tbox = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(0, 0), v2(200, GLOBAL_FS), 1024, "Stage Time", 0);
+	bool edit_spawners_time_paused = true;
+	float edit_spawners_slider_t = 0.f;
+
     // Mouse
     Vector2 m = {0};
 
@@ -408,6 +419,42 @@ int main(void) {
                         case EDSTATE_SPAWNERS: {
                             UI_spacing(&ui, 10);
                             UI_text(&ui, "SPAWNERS", GLOBAL_UI_FS, RED);
+							UI_begin_layout(&ui, UI_LAYOUT_KIND_HORZ);
+								UI_text(&ui, arena_alloc_str(str_arena, "Time: %.2fs", edit_spawners_elapsed_time), GLOBAL_UI_FS, WHITE);
+								UI_text(&ui, arena_alloc_str(str_arena, "/ %.2fs", edit_spawners_stage_time), GLOBAL_UI_FS, WHITE);
+								UI_text(&ui, arena_alloc_str(str_arena, "[%.2f%%]", edit_spawners_slider_t), GLOBAL_UI_FS, WHITE);
+								if (UI_textbox(&ui, &edit_spawners_stage_time_tbox)) {
+									char *endp = NULL;
+									float f = strtod(edit_spawners_stage_time_tbox.buff, &endp);
+									if (endp == NULL) {
+										log_error("Failed to convert %s to a float!", edit_spawners_stage_time_tbox.buff);
+									} else {
+										edit_spawners_stage_time = f;
+									}
+									edit_spawners_stage_time_tbox.active = false;
+								}
+							UI_end_layout(&ui);
+							UI_begin_layout(&ui, UI_LAYOUT_KIND_HORZ);
+								if (UI_button(&ui, "<<", GLOBAL_UI_FS, WHITE)) {
+									rewind_time_by(-5.f, &edit_spawners_elapsed_time, 0.f, edit_spawners_stage_time);
+									edit_spawners_time_paused = true;
+								}
+								if (UI_button(&ui, "<", GLOBAL_UI_FS, WHITE)) {
+									rewind_time_by(-1.f, &edit_spawners_elapsed_time, 0.f, edit_spawners_stage_time);
+									edit_spawners_time_paused = true;
+								}
+								if (UI_button(&ui, "TOGG", GLOBAL_UI_FS, WHITE)) {
+									edit_spawners_time_paused = !edit_spawners_time_paused;
+								}
+								if (UI_button(&ui, ">", GLOBAL_UI_FS, WHITE)) {
+									rewind_time_by(1.f, &edit_spawners_elapsed_time, 0.f, edit_spawners_stage_time);
+									edit_spawners_time_paused = true;
+								}
+								if (UI_button(&ui, ">>", GLOBAL_UI_FS, WHITE)) {
+									rewind_time_by(5.f, &edit_spawners_elapsed_time, 0.f, edit_spawners_stage_time);
+									edit_spawners_time_paused = true;
+								}
+							UI_end_layout(&ui);
                         } break;
                         case EDSTATE_HITBOX: {
                             UI_spacing(&ui, 10);
@@ -645,6 +692,17 @@ int main(void) {
 
                     } break;
                     case EDSTATE_SPAWNERS: {
+						if (!edit_spawners_stage_time_tbox.active) {
+							if (IsKeyPressed(KEY_SPACE)) {
+								edit_spawners_time_paused = !edit_spawners_time_paused;
+							}
+							if (IsKeyDown(KEY_LEFT_CONTROL)) {
+								if (IsKeyPressed(KEY_R)) {
+									edit_spawners_elapsed_time = 0.f;
+									edit_spawners_time_paused = true;
+								}
+							}
+						}
                     } break;
                     case EDSTATE_SFX: {
                     } break;
@@ -723,6 +781,16 @@ int main(void) {
                         }
                     } break;
                     case EDSTATE_SPAWNERS: {
+						if (!edit_spawners_time_paused) {
+							edit_spawners_elapsed_time += delta;
+						}
+
+						if (edit_spawners_elapsed_time >= edit_spawners_stage_time) {
+							edit_spawners_elapsed_time = edit_spawners_stage_time;
+							edit_spawners_time_paused = true;
+						}
+
+						if (edit_spawners_stage_time != 0.f) edit_spawners_slider_t = (edit_spawners_elapsed_time / edit_spawners_stage_time);
                     } break;
                     case EDSTATE_SFX: {
                         if (IsMusicReady(edit_sfx_music)) {
