@@ -1175,7 +1175,7 @@ void UI_end(UI* this) {
         size.y
      };
 
-     if ((mouse_button_down_unignored(MOUSE_BUTTON_LEFT) || mouse_button_down_unignored(MOUSE_BUTTON_MIDDLE) || mouse_button_down_unignored(MOUSE_BUTTON_RIGHT))&&
+     if ((this->show) && (mouse_button_down_unignored(MOUSE_BUTTON_LEFT) || mouse_button_down_unignored(MOUSE_BUTTON_MIDDLE) || mouse_button_down_unignored(MOUSE_BUTTON_RIGHT))&&
          (CheckCollisionPointRec(mpos, rect) || CheckCollisionPointRec(mpos, titlebar))) {
          ignore_mouse_input(true);
      }

@@ -240,6 +240,7 @@ int main(void) {
     // Define structs in LUA
     define_hitbox_struct_in_lua(L);
     define_bullet_struct_in_lua(L);
+    define_spawner_struct_in_lua(L);
 
     load_config(L);
 
@@ -380,6 +381,9 @@ int main(void) {
 	float edit_spawners_slider_t = 0.f;
 	Vector2 edit_spawners_cursor = {0};
 	Spawners edit_spawners = {0};
+	Spawner *edit_spawners_selected = NULL;
+	float edit_spawners_time_diff = 5.f;
+	Textbox edit_spawners_filepath_tbox = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(0, 0), v2(200, GLOBAL_FS), 1024, "Filepath", 0);
 
     // Mouse
     Vector2 m = {0};
@@ -470,6 +474,26 @@ int main(void) {
 									edit_spawners_time_paused = true;
 								}
 							UI_end_layout(&ui);
+							UI_text(&ui, arena_alloc_str(str_arena, "Spawners count: %zu", edit_spawners.count), GLOBAL_UI_FS, WHITE);
+							UI_text(&ui, arena_alloc_str(str_arena, "Selected: %s", edit_spawners_selected ? "SOMETHING" : "Nothing"), GLOBAL_UI_FS, WHITE);
+							if (UI_textbox(&ui, &edit_spawners_filepath_tbox)) {
+								edit_spawners_filepath_tbox.active = false;
+							}
+							const char *actual_edit_spawners_filepath = arena_alloc_str(str_arena, "%s%s", lua_getstring(L, "SCRIPT_PATH"), edit_spawners_filepath_tbox.buff);
+							if (UI_button(&ui, "SAVE", GLOBAL_UI_FS, YELLOW) || (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_S))) {
+								if (save_spawners_to_lua(&edit_spawners, actual_edit_spawners_filepath)) {
+									log_debug("Successfully saved %zu spawners to %s", edit_spawners.count, actual_edit_spawners_filepath);
+								} else {
+									log_error("Failed to save %zu spawners to %s", edit_spawners.count, actual_edit_spawners_filepath);
+								}
+							}
+							if (UI_button(&ui, "LOAD", GLOBAL_UI_FS, YELLOW) || (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_L))) {
+								if (load_spawners_from_lua(&edit_spawners, actual_edit_spawners_filepath)) {
+									log_debug("Successfully loaded %zu spawners from %s", edit_spawners.count, actual_edit_spawners_filepath);
+								} else {
+									log_error("Failed to load %zu spawners from %s", edit_spawners.count, actual_edit_spawners_filepath);
+								}
+							}
                         } break;
                         case EDSTATE_HITBOX: {
                             UI_spacing(&ui, 10);
@@ -722,6 +746,39 @@ int main(void) {
 								Spawner s = make_spawner(edit_spawners_cursor, edit_spawners_elapsed_time, 1, 1);
 								darr_append(edit_spawners, s);
 							}
+
+							if (mouse_button_pressed(MOUSE_BUTTON_RIGHT)) {
+								edit_spawners_selected = NULL;
+								for (int i = 0; i < edit_spawners.count; ++i) {
+									Spawner *s = &edit_spawners.items[i];
+									float diff = fabsf(s->start_time - edit_spawners_elapsed_time);
+									if (diff > edit_spawners_time_diff) { continue; }
+									if (s->pos.x == edit_spawners_cursor.x && 
+										s->pos.y == edit_spawners_cursor.y) {
+										edit_spawners_selected = s;
+									}
+								}
+							}
+
+							// Move selected spawner
+							if (edit_spawners_selected) {
+								if (IsKeyPressed(KEY_LEFT)) {
+									edit_spawners_selected->pos.x -= TILESIZE;
+									if (edit_spawners_selected->pos.x < bounds.x) edit_spawners_selected->pos.x = bounds.x;
+								}
+								if (IsKeyPressed(KEY_RIGHT)) {
+									edit_spawners_selected->pos.x += TILESIZE;
+									if (edit_spawners_selected->pos.x > bounds.x + bounds.width) edit_spawners_selected->pos.x = bounds.x + bounds.width;
+								}
+								if (IsKeyPressed(KEY_UP)) {
+									edit_spawners_selected->pos.y -= TILESIZE;
+									if (edit_spawners_selected->pos.y < bounds.y) edit_spawners_selected->pos.y = bounds.y;
+								}
+								if (IsKeyPressed(KEY_DOWN)) {
+									edit_spawners_selected->pos.y += TILESIZE;
+									if (edit_spawners_selected->pos.y > bounds.y + bounds.height) edit_spawners_selected->pos.y = bounds.y + bounds.height;
+								}
+							}
 						}
                     } break;
                     case EDSTATE_SFX: {
@@ -922,20 +979,24 @@ int main(void) {
 							DrawLine(x, bounds.y, x, bounds.y + bounds.height, WHITE);
 						}
 
-						DrawCircleV(edit_spawners_cursor, TILESIZE*0.25, RED);
 						Rectangle r = { .x = edit_spawners_cursor.x, .y = edit_spawners_cursor.y, .width = TILESIZE, .height = TILESIZE };
 						DrawRectangleLinesEx(r, 2.f, RED);
 
 						for (int i = 0; i < edit_spawners.count; ++i) {
 							Spawner *s = &edit_spawners.items[i];
 							float diff = fabsf(s->start_time - edit_spawners_elapsed_time);
-							float D = 5.f;
+							float D = edit_spawners_time_diff;
 							if (diff <= D) {
-								draw_spawner(s, mapf(diff, 0, D, 1, 0));
+								draw_spawner(s, mapf(diff, 0, D, 1, 0.1));
 								if (diff <= 0.99)
 									DrawCircleLinesV(s->pos, TILESIZE*0.65, WHITE);
 							}
+							
+							if (s == edit_spawners_selected) {
+								DrawRing(s->pos, TILESIZE*1.15, TILESIZE*1.25, 0, 360, 100, WHITE);
+							}
 						}
+						DrawCircleV(edit_spawners_cursor, TILESIZE*0.25, RED);
                     } break;
                     case EDSTATE_SFX: {
                     } break;
