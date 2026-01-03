@@ -384,6 +384,7 @@ int main(void) {
 	Spawner *edit_spawners_selected = NULL;
 	int edit_spawners_selected_idx = -1;
 	Spawner edit_spawners_template = {0};
+	Spawner edit_spawners_copy = {0};
 	float edit_spawners_time_diff = 5.f;
 	Textbox edit_spawners_filepath_tbox = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(0, 0), v2(200, GLOBAL_FS), 1024, "Filepath", 0);
 	Textbox edit_spawners_spawn_rate_tbox = make_textbox(font, GLOBAL_FS, YELLOW, GRAY, v2(0, 0), v2(200, GLOBAL_FS), 1024, "Spawn Rate", 0);
@@ -504,7 +505,34 @@ int main(void) {
 									edit_spawners_template.spawn_count++;
 								}
 							UI_end_layout(&ui);
-							UI_text(&ui, arena_alloc_str(str_arena, "Selected: %s", edit_spawners_selected ? "SOMETHING" : "Nothing"), GLOBAL_UI_FS, WHITE);
+							UI_text(&ui, "Selected:", GLOBAL_UI_FS, YELLOW);
+							if (edit_spawners_selected) {
+								UI_text(&ui, arena_alloc_str(str_arena, "Pos: %.2f, %.2f", edit_spawners_selected->pos.x, edit_spawners_selected->pos.y), GLOBAL_UI_FS, YELLOW);
+								UI_text(&ui, arena_alloc_str(str_arena, "Start time: %.2f", edit_spawners_selected->start_time), GLOBAL_UI_FS, YELLOW);
+								UI_begin_layout(&ui, UI_LAYOUT_KIND_HORZ);
+									UI_text(&ui, arena_alloc_str(str_arena, "Spawn rate: %.2f", edit_spawners_selected->alarm.alarm_time), GLOBAL_UI_FS, YELLOW);
+									if (UI_textbox(&ui, &edit_spawners_spawn_rate_tbox)) {
+										edit_spawners_spawn_rate_tbox.active = false;
+										char *endp = NULL;
+										float f = strtod(edit_spawners_spawn_rate_tbox.buff, &endp);
+										if (endp == NULL) {
+											log_error("Failed to convert %s to a float!", edit_spawners_spawn_rate_tbox.buff);
+										} else {
+											edit_spawners_selected->alarm.alarm_time = f;
+										}
+									}
+								UI_end_layout(&ui);
+								UI_begin_layout(&ui, UI_LAYOUT_KIND_HORZ);
+								UI_text(&ui, arena_alloc_str(str_arena, "Spawn count: %d", edit_spawners_selected->spawn_count), GLOBAL_UI_FS, YELLOW);
+									if (UI_button(&ui, "-", GLOBAL_UI_FS, YELLOW)) {
+										edit_spawners_selected->spawn_count--;
+										if (edit_spawners_selected->spawn_count < 1) edit_spawners_selected->spawn_count = 1;
+									}
+									if (UI_button(&ui, "+", GLOBAL_UI_FS, YELLOW)) {
+										edit_spawners_selected->spawn_count++;
+									}
+								UI_end_layout(&ui);
+							}
 							if (UI_textbox(&ui, &edit_spawners_filepath_tbox)) {
 								edit_spawners_filepath_tbox.active = false;
 							}
@@ -792,12 +820,31 @@ int main(void) {
 							}
 
 
+							// Paste copied Spawner
+							if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_V)) {
+								edit_spawners_copy.start_time = edit_spawners_elapsed_time;
+								darr_append(edit_spawners, edit_spawners_copy);
+								edit_spawners_selected = &edit_spawners.items[edit_spawners.count-1];
+								edit_spawners_selected_idx = edit_spawners.count-1;
+							}
 							if (edit_spawners_selected) {
-								// Delete selecte spawner
-								if(IsKeyPressed(KEY_DELETE)) {
+								// Delete selected spawner
+								if (IsKeyPressed(KEY_DELETE)) {
 									log_debug("Deleting spawner with id %d", edit_spawners_selected_idx);
 									ASSERT(edit_spawners_selected_idx >= 0 && edit_spawners_selected_idx < edit_spawners.count, "edit_spawners_selected_idx outofbounds!");
 									darr_delete(edit_spawners, Spawner, edit_spawners_selected_idx);
+									edit_spawners_selected = NULL;
+								}
+
+								// Cut selected spawner
+								// NOTE: Essentially for just moving the start_time
+								if (IsKeyDown(KEY_LEFT_CONTROL)) {
+									if (IsKeyPressed(KEY_X)) {
+										memcpy(&edit_spawners_copy, edit_spawners_selected, sizeof(Spawner));
+										ASSERT(edit_spawners_selected_idx >= 0 && edit_spawners_selected_idx < edit_spawners.count, "edit_spawners_selected_idx outofbounds!");
+										darr_delete(edit_spawners, Spawner, edit_spawners_selected_idx);
+										edit_spawners_selected = NULL;
+									}
 								}
 
 								// Move selected spawner
