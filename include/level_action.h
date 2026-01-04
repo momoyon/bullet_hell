@@ -1,6 +1,8 @@
 #ifndef LEVEL_ACTION_H_
 #define LEVEL_ACTION_H_
 
+#include <engine.h>
+
 typedef struct Level_action Level_action;
 typedef struct Level_actions Level_actions;
 typedef enum Level_action_type Level_action_type;
@@ -18,7 +20,7 @@ struct Level_action {
 	Vector2 spawn_pos; // For Spawn types
 };
 
-Level_action spawn_enemy(Vector2 pos);
+Level_action spawn_enemy(Vector2 pos, float time);
 
 struct Level_actions {
 	Level_action *items;
