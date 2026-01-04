@@ -8,7 +8,7 @@
 void define_spawner_struct_in_lua(lua_State *L) {
     if (!lua_check(L, luaL_dostring(L,
                 "Spawner = {}\n"
-                "Spawner.__index = Bullet\n"
+                "Spawner.__index = Spawner\n"
                 "function Spawner.new(x, y, start, rate, count)\n"
                 "local self = setmetatable({}, Spawner)\n"
                 "self.x = x\n"
